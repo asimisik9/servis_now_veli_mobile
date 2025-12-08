@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../../core/constants/api_constants.dart';
-
+import '../../../core/network/network_manager.dart';
 import '../../../core/utils/token_manager.dart';
 
 abstract class AuthRepository {
@@ -10,7 +10,7 @@ abstract class AuthRepository {
 class AuthRepositoryImpl implements AuthRepository {
   final Dio _dio;
 
-  AuthRepositoryImpl({Dio? dio}) : _dio = dio ?? Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
+  AuthRepositoryImpl({Dio? dio}) : _dio = dio ?? NetworkManager().dio;
 
   @override
   Future<bool> login(String email, String password) async {
@@ -27,9 +27,14 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       if (response.statusCode == 200) {
-        final token = response.data['access_token'];
-        if (token != null) {
-          TokenManager().setToken(token);
+        final accessToken = response.data['access_token'];
+        final refreshToken = response.data['refresh_token'];
+        
+        if (accessToken != null && refreshToken != null) {
+          await TokenManager().setTokens(
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+          );
           return true;
         }
       }

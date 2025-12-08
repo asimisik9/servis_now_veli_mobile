@@ -16,8 +16,16 @@ class MapView extends StatelessWidget {
   }
 }
 
-class _MapViewContent extends StatelessWidget {
+class _MapViewContent extends StatefulWidget {
   const _MapViewContent({Key? key}) : super(key: key);
+
+  @override
+  State<_MapViewContent> createState() => _MapViewContentState();
+}
+
+class _MapViewContentState extends State<_MapViewContent> {
+  GoogleMapController? _mapController;
+  bool _hasMovedToInitialLocation = false;
 
   @override
   Widget build(BuildContext context) {
@@ -50,19 +58,71 @@ class _MapViewContent extends StatelessWidget {
       );
     }
 
+    // Konum geldiğinde ve harita hazır olduğunda kamerayı taşı
+    if (!_hasMovedToInitialLocation &&
+        viewModel.busLocation != null &&
+        _mapController != null) {
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLng(viewModel.busLocation!),
+      );
+      _hasMovedToInitialLocation = true;
+    }
+
     return Scaffold(
       body: Stack(
         children: [
           GoogleMap(
-            initialCameraPosition: const CameraPosition(
-              target: LatLng(41.0082, 28.9784), // Default Istanbul
-              zoom: 12,
+            initialCameraPosition: CameraPosition(
+              target: viewModel.busLocation ?? const LatLng(41.0082, 28.9784), // Default Istanbul
+              zoom: 15,
             ),
             markers: viewModel.markers,
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
+            onMapCreated: (controller) {
+              _mapController = controller;
+              if (viewModel.busLocation != null) {
+                controller.animateCamera(
+                  CameraUpdate.newLatLng(viewModel.busLocation!),
+                );
+                _hasMovedToInitialLocation = true;
+              }
+            },
           ),
+          // Waiting indicator if location is null
+          if (viewModel.busLocation == null)
+            Positioned(
+              top: 100,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Text("Servis konumu bekleniyor..."),
+                  ],
+                ),
+              ),
+            ),
           // Custom Buttons Example
           Positioned(
             bottom: 20,
@@ -70,7 +130,11 @@ class _MapViewContent extends StatelessWidget {
             child: FloatingActionButton(
               backgroundColor: AppColors.primary,
               onPressed: () {
-                // Center on bus logic could go here
+                if (viewModel.busLocation != null && _mapController != null) {
+                  _mapController!.animateCamera(
+                    CameraUpdate.newLatLng(viewModel.busLocation!),
+                  );
+                }
               },
               child: const Icon(Icons.center_focus_strong, color: Colors.white),
             ),

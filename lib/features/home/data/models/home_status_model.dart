@@ -4,6 +4,7 @@ class HomeStatusModel {
   final String? driverName;
   final String? driverPhone;
   final String? plateNumber;
+  final String? busId;
 
   HomeStatusModel({
     this.tripStatus,
@@ -11,6 +12,7 @@ class HomeStatusModel {
     this.driverName,
     this.driverPhone,
     this.plateNumber,
+    this.busId,
   });
 
   factory HomeStatusModel.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,7 @@ class HomeStatusModel {
       driverName: json['driverName'],
       driverPhone: json['driverPhone'],
       plateNumber: json['plateNumber'],
+      busId: json['busId'],
     );
   }
 }

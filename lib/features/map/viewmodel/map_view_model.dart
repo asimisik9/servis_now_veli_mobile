@@ -22,10 +22,8 @@ class MapViewModel extends ChangeNotifier {
 
   Timer? _timer;
 
-  // Static locations for Home and School
-  final LatLng _homeLocation = const LatLng(41.015137, 28.979530);
-  final LatLng _schoolLocation = const LatLng(41.025137, 28.989530);
-
+  // Static locations removed
+  
   String? _currentStudentId;
 
   void init() {
@@ -59,10 +57,11 @@ class MapViewModel extends ChangeNotifier {
     if (_currentStudentId == null) return;
 
     try {
+      // Check real service status from backend
       _isServiceActive = await _mapService.checkServiceStatus(_currentStudentId!);
+      
       if (_isServiceActive) {
-        _setupStaticMarkers();
-        _startLiveTracking();
+        await _startLiveTracking();
       }
     } catch (e) {
       debugPrint("Error checking service status: $e");
@@ -70,31 +69,53 @@ class MapViewModel extends ChangeNotifier {
     }
   }
 
-  void _setupStaticMarkers() {
-    _markers.add(
-      Marker(
-        markerId: const MarkerId('home'),
-        position: _homeLocation,
-        infoWindow: const InfoWindow(title: 'Ev'),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-      ),
-    );
-    _markers.add(
-      Marker(
-        markerId: const MarkerId('school'),
-        position: _schoolLocation,
-        infoWindow: const InfoWindow(title: 'Okul'),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-      ),
-    );
+  // _setupStaticMarkers removed
+
+  Future<void> _startLiveTracking() async {
+    if (_currentStudentId == null) return;
+
+    // Initial fetch
+    await _fetchLiveLocation();
+
+    // Get Bus ID for WebSocket
+    final busId = await _mapService.getBusId(_currentStudentId!);
+    if (busId != null) {
+      debugPrint("Subscribing to Bus Location: $busId");
+      final stream = _mapService.connectToBusLocationStream(busId);
+      stream?.listen((location) {
+        debugPrint("New Location Received: $location");
+        _updateBusLocation(location);
+      }, onError: (error) {
+        debugPrint("WebSocket error in ViewModel: $error");
+      }, onDone: () {
+        debugPrint("WebSocket connection closed");
+      });
+    }
   }
 
-  void _startLiveTracking() {
-    _timer?.cancel();
-    _fetchLiveLocation(); // Fetch immediately
-    _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      _fetchLiveLocation();
-    });
+  void _updateBusLocation(LatLng location) {
+    _busLocation = location;
+    
+    // Update bus marker
+    _markers.removeWhere((m) => m.markerId.value == 'bus');
+    _markers.add(
+      Marker(
+        markerId: const MarkerId('bus'),
+        position: location,
+        infoWindow: const InfoWindow(title: 'Servis'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
+      ),
+    );
+    
+    notifyListeners();
+  }
+
+  Future<void> refreshLocation() async {
+    _isLoading = true;
+    notifyListeners();
+    await _fetchLiveLocation();
+    _isLoading = false;
+    notifyListeners();
   }
 
   Future<void> _fetchLiveLocation() async {
@@ -103,20 +124,7 @@ class MapViewModel extends ChangeNotifier {
     try {
       final location = await _mapService.getLiveLocation(_currentStudentId!);
       if (location != null) {
-        _busLocation = location;
-        
-        // Update bus marker
-        _markers.removeWhere((m) => m.markerId.value == 'bus');
-        _markers.add(
-          Marker(
-            markerId: const MarkerId('bus'),
-            position: location,
-            infoWindow: const InfoWindow(title: 'Servis'),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
-          ),
-        );
-        
-        notifyListeners();
+        _updateBusLocation(location);
       }
     } catch (e) {
       debugPrint("Error fetching live location: $e");
