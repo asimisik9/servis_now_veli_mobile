@@ -17,12 +17,12 @@ class HomeStatusModel {
 
   factory HomeStatusModel.fromJson(Map<String, dynamic> json) {
     return HomeStatusModel(
-      tripStatus: json['tripStatus'],
-      minutesLeft: json['minutesLeft'],
-      driverName: json['driverName'],
-      driverPhone: json['driverPhone'],
-      plateNumber: json['plateNumber'],
-      busId: json['busId'],
+      tripStatus: json['tripStatus']?.toString(),
+      minutesLeft: (json['minutesLeft'] as num?)?.toInt(),
+      driverName: json['driverName']?.toString(),
+      driverPhone: json['driverPhone']?.toString(),
+      plateNumber: json['plateNumber']?.toString(),
+      busId: json['busId']?.toString(),
     );
   }
 }
@@ -31,7 +31,7 @@ class Student {
   final String id;
   final String fullName;
   final String studentNumber;
-  final String schoolId;
+  final String? schoolId;
   final String? schoolName;
   final String? address;
 
@@ -39,19 +39,19 @@ class Student {
     required this.id,
     required this.fullName,
     required this.studentNumber,
-    required this.schoolId,
+    this.schoolId,
     this.schoolName,
     this.address,
   });
 
   factory Student.fromJson(Map<String, dynamic> json) {
     return Student(
-      id: json['id'],
-      fullName: json['full_name'],
-      studentNumber: json['student_number'],
-      schoolId: json['school_id'],
-      schoolName: json['school_name'],
-      address: json['address'],
+      id: (json['id'] ?? '').toString(),
+      fullName: (json['full_name'] ?? '').toString(),
+      studentNumber: (json['student_number'] ?? '').toString(),
+      schoolId: json['school_id']?.toString(),
+      schoolName: json['school_name']?.toString(),
+      address: json['address']?.toString(),
     );
   }
 }

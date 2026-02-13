@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1092393356824",
+    "project_id": "servisnow-93d5b",
+    "storage_bucket": "servisnow-93d5b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1092393356824:android:b03b6b6a6e16564897bd6d",
+        "android_client_info": {
+          "package_name": "com.example.servis_now_veli_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBcJJxcxn5ZspcXsWfZcB3WIfyhXra4OMY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

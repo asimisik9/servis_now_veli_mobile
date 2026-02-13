@@ -5,8 +5,9 @@ import '../data/services/map_service.dart';
 
 class MapViewModel extends ChangeNotifier {
   final MapService _mapService;
-  
-  MapViewModel({MapService? mapService}) : _mapService = mapService ?? MapService();
+
+  MapViewModel({MapService? mapService})
+      : _mapService = mapService ?? MapService();
 
   bool _isLoading = true;
   bool get isLoading => _isLoading;
@@ -21,9 +22,10 @@ class MapViewModel extends ChangeNotifier {
   Set<Marker> get markers => _markers;
 
   Timer? _timer;
+  StreamSubscription<LatLng>? _locationSubscription;
 
   // Static locations removed
-  
+
   String? _currentStudentId;
 
   void init() {
@@ -58,8 +60,9 @@ class MapViewModel extends ChangeNotifier {
 
     try {
       // Check real service status from backend
-      _isServiceActive = await _mapService.checkServiceStatus(_currentStudentId!);
-      
+      _isServiceActive =
+          await _mapService.checkServiceStatus(_currentStudentId!);
+
       if (_isServiceActive) {
         await _startLiveTracking();
       }
@@ -82,7 +85,8 @@ class MapViewModel extends ChangeNotifier {
     if (busId != null) {
       debugPrint("Subscribing to Bus Location: $busId");
       final stream = _mapService.connectToBusLocationStream(busId);
-      stream?.listen((location) {
+      await _locationSubscription?.cancel();
+      _locationSubscription = stream?.listen((location) {
         debugPrint("New Location Received: $location");
         _updateBusLocation(location);
       }, onError: (error) {
@@ -95,7 +99,7 @@ class MapViewModel extends ChangeNotifier {
 
   void _updateBusLocation(LatLng location) {
     _busLocation = location;
-    
+
     // Update bus marker
     _markers.removeWhere((m) => m.markerId.value == 'bus');
     _markers.add(
@@ -106,7 +110,7 @@ class MapViewModel extends ChangeNotifier {
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
       ),
     );
-    
+
     notifyListeners();
   }
 
@@ -133,6 +137,7 @@ class MapViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _locationSubscription?.cancel();
     _timer?.cancel();
     super.dispose();
   }

@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/notification_service.dart';
+import '../../auth/services/auth_service.dart';
 import '../../home/data/models/home_status_model.dart';
 import '../data/services/profile_service.dart';
 
 class ProfileViewModel extends ChangeNotifier {
   final ProfileService _profileService;
+  final AuthService _authService;
+  final NotificationService _notificationService;
 
-  ProfileViewModel({ProfileService? profileService})
-      : _profileService = profileService ?? ProfileService();
+  ProfileViewModel({
+    ProfileService? profileService,
+    AuthService? authService,
+    NotificationService? notificationService,
+  })  : _profileService = profileService ?? ProfileService(),
+        _authService = authService ?? AuthService(),
+        _notificationService = notificationService ?? NotificationService();
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -16,6 +25,9 @@ class ProfileViewModel extends ChangeNotifier {
 
   bool _isAbsent = false;
   bool get isAbsent => _isAbsent;
+
+  bool _isLoggingOut = false;
+  bool get isLoggingOut => _isLoggingOut;
 
   void init() {
     _fetchProfileData();
@@ -94,6 +106,27 @@ class ProfileViewModel extends ChangeNotifier {
       return false;
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> logout() async {
+    if (_isLoggingOut) {
+      return false;
+    }
+
+    _isLoggingOut = true;
+    notifyListeners();
+
+    try {
+      await _notificationService.removeToken();
+      await _authService.logout();
+      return true;
+    } catch (e) {
+      debugPrint("Error during logout: $e");
+      return false;
+    } finally {
+      _isLoggingOut = false;
       notifyListeners();
     }
   }

@@ -2,48 +2,58 @@ import 'package:dio/dio.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/network_manager.dart';
 import '../../../home/data/models/home_status_model.dart';
+import '../../../home/data/services/student_service.dart';
 
 class ProfileService {
   final Dio _dio;
+  final NetworkManager _networkManager;
+  final StudentService _studentService;
 
-  ProfileService({Dio? dio}) : _dio = dio ?? NetworkManager().dio;
+  ProfileService({Dio? dio, NetworkManager? networkManager})
+      : _networkManager = networkManager ?? NetworkManager(),
+        _dio = dio ?? (networkManager ?? NetworkManager()).dio,
+        _studentService = StudentService(
+          dio: dio ?? (networkManager ?? NetworkManager()).dio,
+          networkManager: networkManager ?? NetworkManager(),
+        );
 
-  Future<List<Student>> fetchStudents() async {
-    try {
-      final response = await _dio.get('/parent/me/students');
-
-      if (response.statusCode == 200) {
-        return (response.data as List).map((e) => Student.fromJson(e)).toList();
-      }
-      throw Exception('Failed to load students');
-    } catch (e) {
-      rethrow;
-    }
+  Future<List<Student>> fetchStudents() {
+    return _studentService.fetchStudents();
   }
 
   Future<bool> reportAbsence(String studentId) async {
     try {
-      final response = await _dio.post('/parent/students/$studentId/absent');
+      final response = await _dio.post(
+        ApiConstants.parentStudentAbsenceEndpoint(studentId),
+      );
 
       return response.statusCode == 200;
     } catch (e) {
-      return false;
+      throw _networkManager.mapError(
+        e,
+        fallbackMessage: 'Yoklama bildirimi gönderilemedi.',
+      );
     }
   }
 
-  Future<Student?> updateStudentAddress(String studentId, String newAddress) async {
+  Future<Student?> updateStudentAddress(
+      String studentId, String newAddress) async {
     try {
       final response = await _dio.put(
-        '/parent/students/$studentId/address',
+        ApiConstants.parentStudentAddressEndpoint(studentId),
         data: {'address': newAddress},
       );
 
-      if (response.statusCode == 200) {
-        return Student.fromJson(response.data);
+      if (response.statusCode == 200 && response.data is Map) {
+        return Student.fromJson(
+            Map<String, dynamic>.from(response.data as Map));
       }
       return null;
     } catch (e) {
-      return null;
+      throw _networkManager.mapError(
+        e,
+        fallbackMessage: 'Adres güncellenemedi.',
+      );
     }
   }
 }

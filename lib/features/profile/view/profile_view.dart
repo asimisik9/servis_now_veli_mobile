@@ -19,23 +19,36 @@ class ProfileView extends StatelessWidget {
 class _ProfileViewContent extends StatelessWidget {
   const _ProfileViewContent({Key? key}) : super(key: key);
 
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog(BuildContext context, ProfileViewModel viewModel) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Çıkış Yap"),
-        content: const Text("Uygulamadan çıkış yapmak istediğinize emin misiniz?"),
+        content:
+            const Text("Uygulamadan çıkış yapmak istediğinize emin misiniz?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text("İptal"),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
+              final success = await viewModel.logout();
+              if (!context.mounted) {
+                return;
+              }
               Navigator.pop(context); // Close dialog
-              Navigator.of(context, rootNavigator: true).pushReplacement(
-                MaterialPageRoute(builder: (context) => const LoginView()),
-              );
+              if (success) {
+                Navigator.of(context, rootNavigator: true).pushReplacement(
+                  MaterialPageRoute(builder: (context) => const LoginView()),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Çıkış yapılırken bir hata oluştu."),
+                  ),
+                );
+              }
             },
             child: const Text("Çıkış Yap", style: TextStyle(color: Colors.red)),
           ),
@@ -44,23 +57,27 @@ class _ProfileViewContent extends StatelessWidget {
     );
   }
 
-  Future<void> _handleAbsenceChange(BuildContext context, bool value, ProfileViewModel viewModel) async {
+  Future<void> _handleAbsenceChange(
+      BuildContext context, bool value, ProfileViewModel viewModel) async {
     if (!value) {
       // User is trying to set "Not Coming"
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text("Emin misiniz?"),
-          content: const Text("Öğrencinin bugün okula gelmeyeceğini bildirmek üzeresiniz. Servis rotası buna göre güncellenecektir."),
+          content: const Text(
+              "Öğrencinin bugün okula gelmeyeceğini bildirmek üzeresiniz. Servis rotası buna göre güncellenecektir."),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text("İptal"),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              style:
+                  ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
               onPressed: () => Navigator.pop(context, true),
-              child: const Text("Onayla", style: TextStyle(color: Colors.white)),
+              child:
+                  const Text("Onayla", style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -71,11 +88,12 @@ class _ProfileViewContent extends StatelessWidget {
       }
     } else {
       // User is setting back to "Going"
-      viewModel.toggleAbsence(true);
+      await viewModel.toggleAbsence(true);
     }
   }
 
-  Future<void> _showAddressChangeDialog(BuildContext context, ProfileViewModel viewModel) async {
+  Future<void> _showAddressChangeDialog(
+      BuildContext context, ProfileViewModel viewModel) async {
     final TextEditingController addressController = TextEditingController(
       text: viewModel.currentStudent?.address ?? "",
     );
@@ -121,7 +139,8 @@ class _ProfileViewContent extends StatelessWidget {
         );
       } else if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Adres güncellenirken bir hata oluştu.")),
+          const SnackBar(
+              content: Text("Adres güncellenirken bir hata oluştu.")),
         );
       }
     }
@@ -168,7 +187,8 @@ class _ProfileViewContent extends StatelessWidget {
 
     if (viewModel.isLoading && viewModel.currentStudent == null) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        body:
+            Center(child: CircularProgressIndicator(color: AppColors.primary)),
       );
     }
 
@@ -198,7 +218,8 @@ class _ProfileViewContent extends StatelessWidget {
                   CircleAvatar(
                     radius: 40,
                     backgroundColor: Colors.white,
-                    child: Icon(Icons.person, size: 40, color: Colors.grey.shade400),
+                    child: Icon(Icons.person,
+                        size: 40, color: Colors.grey.shade400),
                   ),
                   SizedBox(height: size.height * 0.02),
                   const Text(
@@ -212,7 +233,8 @@ class _ProfileViewContent extends StatelessWidget {
                   if (viewModel.currentStudent != null) ...[
                     SizedBox(height: size.height * 0.01),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
@@ -244,7 +266,7 @@ class _ProfileViewContent extends StatelessWidget {
                           offset: const Offset(0, 4),
                         ),
                       ],
-                      border: viewModel.isAbsent 
+                      border: viewModel.isAbsent
                           ? Border.all(color: Colors.orange, width: 2)
                           : null,
                     ),
@@ -258,14 +280,19 @@ class _ProfileViewContent extends StatelessWidget {
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: viewModel.isAbsent 
+                                    color: viewModel.isAbsent
                                         ? Colors.orange.withValues(alpha: 0.1)
-                                        : AppColors.primary.withValues(alpha: 0.1),
+                                        : AppColors.primary
+                                            .withValues(alpha: 0.1),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
-                                    viewModel.isAbsent ? Icons.warning_amber_rounded : Icons.school,
-                                    color: viewModel.isAbsent ? Colors.orange : AppColors.primary,
+                                    viewModel.isAbsent
+                                        ? Icons.warning_amber_rounded
+                                        : Icons.school,
+                                    color: viewModel.isAbsent
+                                        ? Colors.orange
+                                        : AppColors.primary,
                                   ),
                                 ),
                                 const SizedBox(width: 15),
@@ -281,10 +308,14 @@ class _ProfileViewContent extends StatelessWidget {
                                       ),
                                     ),
                                     Text(
-                                      viewModel.isAbsent ? "Gelmeyecek" : "Gidiyor",
+                                      viewModel.isAbsent
+                                          ? "Gelmeyecek"
+                                          : "Gidiyor",
                                       style: TextStyle(
                                         fontSize: 14,
-                                        color: viewModel.isAbsent ? Colors.orange : Colors.green,
+                                        color: viewModel.isAbsent
+                                            ? Colors.orange
+                                            : Colors.green,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -295,7 +326,8 @@ class _ProfileViewContent extends StatelessWidget {
                             Switch(
                               value: !viewModel.isAbsent,
                               activeThumbColor: AppColors.accent,
-                              onChanged: (val) => _handleAbsenceChange(context, val, viewModel),
+                              onChanged: (val) =>
+                                  _handleAbsenceChange(context, val, viewModel),
                             ),
                           ],
                         ),
@@ -309,7 +341,8 @@ class _ProfileViewContent extends StatelessWidget {
                             ),
                             child: const Row(
                               children: [
-                                Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                                Icon(Icons.info_outline,
+                                    color: Colors.orange, size: 20),
                                 SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
@@ -358,21 +391,36 @@ class _ProfileViewContent extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          _buildInfoRow(Icons.person, "Ad Soyad", viewModel.currentStudent!.fullName),
+                          _buildInfoRow(Icons.person, "Ad Soyad",
+                              viewModel.currentStudent!.fullName),
                           const Divider(height: 30),
-                          _buildInfoRow(Icons.school, "Okul", viewModel.currentStudent!.schoolName ?? viewModel.currentStudent!.schoolId),
+                          _buildInfoRow(
+                            Icons.school,
+                            "Okul",
+                            viewModel.currentStudent!.schoolName ??
+                                viewModel.currentStudent!.schoolId ??
+                                "Okul bilgisi yok",
+                          ),
                           const Divider(height: 30),
-                          _buildInfoRow(Icons.location_on, "Adres", viewModel.currentStudent!.address ?? "Adres girilmemiş"),
+                          _buildInfoRow(
+                              Icons.location_on,
+                              "Adres",
+                              viewModel.currentStudent!.address ??
+                                  "Adres girilmemiş"),
                           const SizedBox(height: 20),
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed: () => _showAddressChangeDialog(context, viewModel),
-                              icon: const Icon(Icons.edit_location_alt, color: Colors.white),
-                              label: const Text("Adres Değişikliği", style: TextStyle(color: Colors.white)),
+                              onPressed: () =>
+                                  _showAddressChangeDialog(context, viewModel),
+                              icon: const Icon(Icons.edit_location_alt,
+                                  color: Colors.white),
+                              label: const Text("Adres Değişikliği",
+                                  style: TextStyle(color: Colors.white)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10),
                                 ),
@@ -389,9 +437,12 @@ class _ProfileViewContent extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => _showLogoutDialog(context),
+                      onPressed: viewModel.isLoggingOut
+                          ? null
+                          : () => _showLogoutDialog(context, viewModel),
                       icon: const Icon(Icons.logout, color: Colors.red),
-                      label: const Text("Çıkış Yap", style: TextStyle(color: Colors.red)),
+                      label: const Text("Çıkış Yap",
+                          style: TextStyle(color: Colors.red)),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 15),
                         side: const BorderSide(color: Colors.red),

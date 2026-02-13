@@ -7,31 +7,33 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/token_manager.dart';
 import '../../../../core/network/network_manager.dart';
 import '../../../home/data/models/home_status_model.dart';
+import '../../../home/data/services/student_service.dart';
 
 class MapService {
   final Dio _dio;
+  final NetworkManager _networkManager;
+  final StudentService _studentService;
 
-  MapService({Dio? dio}) : _dio = dio ?? NetworkManager().dio;
+  MapService({Dio? dio, NetworkManager? networkManager})
+      : _networkManager = networkManager ?? NetworkManager(),
+        _dio = dio ?? (networkManager ?? NetworkManager()).dio,
+        _studentService = StudentService(
+          dio: dio ?? (networkManager ?? NetworkManager()).dio,
+          networkManager: networkManager ?? NetworkManager(),
+        );
 
-  Future<List<Student>> fetchStudents() async {
-    try {
-      final response = await _dio.get('/parent/me/students');
-
-      if (response.statusCode == 200) {
-        return (response.data as List).map((e) => Student.fromJson(e)).toList();
-      }
-      throw Exception('Failed to load students');
-    } catch (e) {
-      rethrow;
-    }
+  Future<List<Student>> fetchStudents() {
+    return _studentService.fetchStudents();
   }
 
   Future<bool> checkServiceStatus(String studentId) async {
     try {
-      final response = await _dio.get('/parent/students/$studentId/dashboard');
+      final response = await _dio.get(
+        ApiConstants.parentStudentDashboardEndpoint(studentId),
+      );
 
-      if (response.statusCode == 200 && response.data != null) {
-        final status = response.data['tripStatus'];
+      if (response.statusCode == 200 && response.data is Map) {
+        final status = (response.data as Map)['tripStatus'];
         return status == 'to_school' || status == 'to_home';
       }
       return false;
@@ -44,10 +46,12 @@ class MapService {
   Future<String?> getBusId(String studentId) async {
     try {
       // Use dashboard endpoint to get busId even if no location history exists
-      final response = await _dio.get('/parent/students/$studentId/dashboard');
+      final response = await _dio.get(
+        ApiConstants.parentStudentDashboardEndpoint(studentId),
+      );
 
-      if (response.statusCode == 200 && response.data != null) {
-        return response.data['busId'];
+      if (response.statusCode == 200 && response.data is Map) {
+        return (response.data as Map)['busId']?.toString();
       }
       return null;
     } catch (e) {
@@ -60,24 +64,27 @@ class MapService {
     if (token == null) return null;
 
     try {
-      final baseUri = Uri.parse(ApiConstants.baseUrl);
-      final wsScheme = baseUri.scheme == 'https' ? 'wss' : 'ws';
-      
-      // Backend WS endpoint: /ws/bus/{busId}/location
-      // ApiConstants.baseUrl genellikle /api ile biter, bunu eziyoruz.
-      final wsUri = baseUri.replace(
-        scheme: wsScheme,
-        path: '/ws/bus/$busId/location',
+      final wsUri = Uri.parse(
+        '${ApiConstants.wsBaseUrl}${ApiConstants.busLocationWsEndpoint(busId)}',
+      ).replace(
         queryParameters: {'token': token},
       );
-      
+
       debugPrint("Connecting to WS: $wsUri");
       final channel = WebSocketChannel.connect(wsUri);
-      
+
       return channel.stream.map((event) {
-        debugPrint("WS Received: $event");
         final data = jsonDecode(event);
-        return LatLng(data['latitude'], data['longitude']);
+        if (data is! Map) {
+          throw const FormatException('WS payload is not a JSON object');
+        }
+        final map = Map<String, dynamic>.from(data);
+        final latRaw = map['latitude'];
+        final lngRaw = map['longitude'];
+        if (latRaw is! num || lngRaw is! num) {
+          throw const FormatException('WS payload missing numeric coordinates');
+        }
+        return LatLng(latRaw.toDouble(), lngRaw.toDouble());
       }).handleError((error) {
         debugPrint("WS Error: $error");
         throw error;
@@ -90,13 +97,16 @@ class MapService {
 
   Future<LatLng?> getLiveLocation(String studentId) async {
     try {
-      final response = await _dio.get('/parent/students/$studentId/bus/location');
+      final response = await _dio.get(
+        ApiConstants.parentStudentBusLocationEndpoint(studentId),
+      );
 
-      if (response.statusCode == 200 && response.data != null) {
-        final lat = response.data['latitude'];
-        final lng = response.data['longitude'];
-        if (lat != null && lng != null) {
-          return LatLng(lat, lng);
+      if (response.statusCode == 200 && response.data is Map) {
+        final map = Map<String, dynamic>.from(response.data as Map);
+        final latRaw = map['latitude'];
+        final lngRaw = map['longitude'];
+        if (latRaw is num && lngRaw is num) {
+          return LatLng(latRaw.toDouble(), lngRaw.toDouble());
         }
       }
       return null;

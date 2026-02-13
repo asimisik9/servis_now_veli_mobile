@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/network/api_exceptions.dart';
 import '../data/models/home_status_model.dart';
 import '../data/services/home_service.dart';
 
@@ -28,7 +29,7 @@ class HomeViewModel extends ChangeNotifier {
     try {
       // 1. Fetch Students
       final students = await _homeService.fetchStudents();
-      
+
       if (students.isEmpty) {
         _errorMessage = "Kayıtlı öğrenci bulunamadı.";
       } else {
@@ -38,7 +39,12 @@ class HomeViewModel extends ChangeNotifier {
         _homeStatus = await _homeService.fetchStudentDashboard(firstStudent.id);
       }
     } catch (e) {
-      _errorMessage = "Veri yüklenirken bir hata oluştu. Lütfen tekrar deneyin.";
+      if (e is ApiException) {
+        _errorMessage = e.message;
+      } else {
+        _errorMessage =
+            "Veri yüklenirken bir hata oluştu. Lütfen tekrar deneyin.";
+      }
       debugPrint(e.toString());
     } finally {
       _isLoading = false;

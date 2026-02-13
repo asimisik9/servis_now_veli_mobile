@@ -1,6 +1,8 @@
 import Flutter
 import UIKit
 import GoogleMaps
+import Firebase
+import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -8,8 +10,17 @@ import GoogleMaps
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    if FirebaseApp.app() == nil {
+      FirebaseApp.configure()
+    }
     GMSServices.provideAPIKey("AIzaSyBMzWnyDQ7FvTmf3iKgDwFW_3bWy1mwSr0")
     GeneratedPluginRegistrant.register(with: self)
+
+    // Push notification registration
+    if #available(iOS 10.0, *) {
+      UNUserNotificationCenter.current().delegate = self
+    }
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
