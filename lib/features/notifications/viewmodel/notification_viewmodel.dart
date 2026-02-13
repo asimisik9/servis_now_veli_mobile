@@ -3,7 +3,10 @@ import '../data/notification_model.dart';
 import '../data/notification_repository.dart';
 
 class NotificationViewModel extends ChangeNotifier {
-  final NotificationRepository _repository = NotificationRepository();
+  final NotificationRepository _repository;
+
+  NotificationViewModel({NotificationRepository? repository})
+      : _repository = repository ?? NotificationRepository();
 
   List<NotificationModel> _notifications = [];
   int _unreadCount = 0;
@@ -73,7 +76,8 @@ class NotificationViewModel extends ChangeNotifier {
   Future<void> markAllAsRead() async {
     try {
       await _repository.markAllAsRead();
-      _notifications = _notifications.map((n) => n.copyWith(isRead: true)).toList();
+      _notifications =
+          _notifications.map((n) => n.copyWith(isRead: true)).toList();
       _unreadCount = 0;
       notifyListeners();
     } catch (e) {

@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/phone_launcher_service.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../data/models/home_status_model.dart';
 import '../data/services/home_service.dart';
 
 class HomeViewModel extends ChangeNotifier {
   final HomeService _homeService;
+  final PhoneLauncherService _phoneLauncherService;
 
-  HomeViewModel({HomeService? homeService})
-      : _homeService = homeService ?? HomeService();
+  HomeViewModel({
+    HomeService? homeService,
+    PhoneLauncherService? phoneLauncherService,
+  })  : _homeService = homeService ?? HomeService(),
+        _phoneLauncherService = phoneLauncherService ?? PhoneLauncherService();
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -49,6 +54,22 @@ class HomeViewModel extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  Future<String?> callDriver(String? phoneNumber) async {
+    if (phoneNumber == null || phoneNumber.trim().isEmpty) {
+      return 'Sürücü telefon numarası bulunamadı.';
+    }
+
+    try {
+      final launched = await _phoneLauncherService.call(phoneNumber);
+      if (!launched) {
+        return 'Sürücü aranamadı.';
+      }
+      return null;
+    } catch (_) {
+      return 'Sürücü aranırken hata oluştu.';
     }
   }
 }

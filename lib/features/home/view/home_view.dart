@@ -137,7 +137,7 @@ class _HomeViewState extends State<HomeView> {
                           isInactive: isInactive,
                         ),
                       ),
-                      
+
                       // Student Info
                       if (_viewModel.currentStudent != null) ...[
                         SizedBox(height: size.height * 0.02),
@@ -159,7 +159,8 @@ class _HomeViewState extends State<HomeView> {
                       ],
 
                       // Driver Info
-                      if (data.driverName != null || data.plateNumber != null) ...[
+                      if (data.driverName != null ||
+                          data.plateNumber != null) ...[
                         SizedBox(height: size.height * 0.02),
                         Align(
                           alignment: Alignment.centerLeft,
@@ -177,9 +178,22 @@ class _HomeViewState extends State<HomeView> {
                           driverName: data.driverName,
                           driverPhone: data.driverPhone,
                           plateNumber: data.plateNumber,
+                          onCallPressed: data.driverPhone == null
+                              ? null
+                              : () async {
+                                  final error = await _viewModel.callDriver(
+                                    data.driverPhone,
+                                  );
+                                  if (!context.mounted || error == null) {
+                                    return;
+                                  }
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(error)),
+                                  );
+                                },
                         ),
                       ],
-                      
+
                       SizedBox(height: size.height * 0.05),
                     ],
                   ),

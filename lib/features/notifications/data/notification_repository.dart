@@ -2,7 +2,10 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/network/network_manager.dart';
 
 class NotificationRepository {
-  final _networkManager = NetworkManager();
+  final NetworkManager _networkManager;
+
+  NotificationRepository({NetworkManager? networkManager})
+      : _networkManager = networkManager ?? NetworkManager();
 
   get _dio => _networkManager.dio;
 

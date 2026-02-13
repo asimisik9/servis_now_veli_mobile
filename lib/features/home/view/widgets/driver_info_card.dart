@@ -1,30 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
 
 class DriverInfoCard extends StatelessWidget {
   final String? driverName;
   final String? driverPhone;
   final String? plateNumber;
+  final Future<void> Function()? onCallPressed;
 
   const DriverInfoCard({
     Key? key,
     this.driverName,
     this.driverPhone,
     this.plateNumber,
+    this.onCallPressed,
   }) : super(key: key);
-
-  Future<void> _makePhoneCall(String phoneNumber) async {
-    final Uri launchUri = Uri(
-      scheme: 'tel',
-      path: phoneNumber,
-    );
-    if (await canLaunchUrl(launchUri)) {
-      await launchUrl(launchUri);
-    } else {
-      debugPrint("Could not launch $launchUri");
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,13 +59,15 @@ class DriverInfoCard extends StatelessWidget {
               ),
               if (driverPhone != null)
                 ElevatedButton.icon(
-                  onPressed: () => _makePhoneCall(driverPhone!),
+                  onPressed:
+                      onCallPressed == null ? null : () => onCallPressed!(),
                   icon: const Icon(Icons.phone, size: 18),
                   label: const Text("Ara"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.accent,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     textStyle: TextStyle(fontSize: size.width * 0.035),
                   ),
                 ),

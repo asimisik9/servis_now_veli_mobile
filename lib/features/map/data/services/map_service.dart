@@ -11,12 +11,10 @@ import '../../../home/data/services/student_service.dart';
 
 class MapService {
   final Dio _dio;
-  final NetworkManager _networkManager;
   final StudentService _studentService;
 
   MapService({Dio? dio, NetworkManager? networkManager})
-      : _networkManager = networkManager ?? NetworkManager(),
-        _dio = dio ?? (networkManager ?? NetworkManager()).dio,
+      : _dio = dio ?? (networkManager ?? NetworkManager()).dio,
         _studentService = StudentService(
           dio: dio ?? (networkManager ?? NetworkManager()).dio,
           networkManager: networkManager ?? NetworkManager(),
