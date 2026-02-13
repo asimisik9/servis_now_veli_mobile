@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/state/selected_student_state.dart';
 import '../../auth/view/login_view.dart';
 import '../viewmodel/profile_view_model.dart';
 
@@ -10,7 +11,9 @@ class ProfileView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => ProfileViewModel()..init(),
+      create: (_) => ProfileViewModel(
+        selectedStudentState: context.read<SelectedStudentState>(),
+      )..init(),
       child: const _ProfileViewContent(),
     );
   }
@@ -59,6 +62,8 @@ class _ProfileViewContent extends StatelessWidget {
 
   Future<void> _handleAbsenceChange(
       BuildContext context, bool value, ProfileViewModel viewModel) async {
+    bool success = false;
+
     if (!value) {
       // User is trying to set "Not Coming"
       final confirmed = await showDialog<bool>(
@@ -84,12 +89,63 @@ class _ProfileViewContent extends StatelessWidget {
       );
 
       if (confirmed == true) {
-        await viewModel.toggleAbsence(false);
+        success = await viewModel.toggleAbsence(false);
       }
     } else {
       // User is setting back to "Going"
-      await viewModel.toggleAbsence(true);
+      success = await viewModel.toggleAbsence(true);
     }
+
+    if (success || !context.mounted) {
+      return;
+    }
+
+    final message = viewModel.errorMessage ??
+        'Devamsızlık durumu güncellenemedi. Lütfen tekrar deneyin.';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Widget _buildStudentSelector(ProfileViewModel viewModel) {
+    if (!viewModel.hasMultipleStudents) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: viewModel.selectedStudentId,
+          isExpanded: true,
+          dropdownColor: AppColors.primary,
+          iconEnabledColor: Colors.white,
+          style: const TextStyle(color: Colors.white),
+          items: viewModel.students
+              .map(
+                (student) => DropdownMenuItem<String>(
+                  value: student.id,
+                  child: Text(
+                    student.fullName,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (studentId) {
+            if (studentId == null) {
+              return;
+            }
+            viewModel.selectStudent(studentId);
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _showAddressChangeDialog(
@@ -192,6 +248,32 @@ class _ProfileViewContent extends StatelessWidget {
       );
     }
 
+    if (viewModel.currentStudent == null && viewModel.errorMessage != null) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                const SizedBox(height: 12),
+                Text(
+                  viewModel.errorMessage!,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: viewModel.reload,
+                  child: const Text('Tekrar Dene'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
       body: SingleChildScrollView(
@@ -222,14 +304,15 @@ class _ProfileViewContent extends StatelessWidget {
                         size: 40, color: Colors.grey.shade400),
                   ),
                   SizedBox(height: size.height * 0.02),
-                  const Text(
-                    "Sayın Veli", // We could fetch parent name too
-                    style: TextStyle(
+                  Text(
+                    viewModel.parentDisplayName,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  _buildStudentSelector(viewModel),
                   if (viewModel.currentStudent != null) ...[
                     SizedBox(height: size.height * 0.01),
                     Container(
@@ -326,11 +409,23 @@ class _ProfileViewContent extends StatelessWidget {
                             Switch(
                               value: !viewModel.isAbsent,
                               activeThumbColor: AppColors.accent,
-                              onChanged: (val) =>
-                                  _handleAbsenceChange(context, val, viewModel),
+                              inactiveThumbColor: Colors.orange,
+                              inactiveTrackColor: Colors.orange.shade200,
+                              onChanged: (val) => viewModel.isAbsenceUpdating
+                                  ? null
+                                  : _handleAbsenceChange(
+                                      context, val, viewModel),
                             ),
                           ],
                         ),
+                        if (viewModel.isAbsenceUpdating)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 12),
+                            child: LinearProgressIndicator(
+                              minHeight: 3,
+                              color: AppColors.primary,
+                            ),
+                          ),
                         if (viewModel.isAbsent) ...[
                           const Divider(height: 30),
                           Container(
@@ -411,8 +506,10 @@ class _ProfileViewContent extends StatelessWidget {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed: () =>
-                                  _showAddressChangeDialog(context, viewModel),
+                              onPressed: viewModel.isAddressUpdating
+                                  ? null
+                                  : () => _showAddressChangeDialog(
+                                      context, viewModel),
                               icon: const Icon(Icons.edit_location_alt,
                                   color: Colors.white),
                               label: const Text("Adres Değişikliği",

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../../../core/services/analytics_service.dart';
+import '../../../core/state/selected_student_state.dart';
+import '../../main_wrapper/viewmodel/main_wrapper_view_model.dart';
 import '../viewmodel/notification_viewmodel.dart';
 import '../data/notification_model.dart';
 
@@ -16,7 +20,58 @@ class _NotificationViewState extends State<NotificationView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<NotificationViewModel>().loadNotifications(refresh: true);
+      context.read<NotificationViewModel>().fetchUnreadCount();
     });
+  }
+
+  Future<void> _handleNotificationTap(NotificationModel notification) async {
+    final notificationViewModel = context.read<NotificationViewModel>();
+    if (!notification.isRead) {
+      await notificationViewModel.markAsRead(notification.id);
+      if (!mounted) {
+        return;
+      }
+    }
+
+    final studentId = notification.studentId?.trim();
+    if (studentId != null && studentId.isNotEmpty) {
+      final selectedStudentState = context.read<SelectedStudentState>();
+      await selectedStudentState.loadStudents();
+      if (!mounted) {
+        return;
+      }
+      selectedStudentState.selectStudentById(studentId);
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    final targetTab = notification.targetTab ?? _defaultTargetTab(notification);
+    AnalyticsService().logEvent(
+      'notification_opened',
+      parameters: <String, Object?>{
+        'notification_type': notification.notificationType,
+        'target_tab': targetTab,
+        'student_id': notification.studentId ?? '',
+        'event_id': notification.eventId ?? '',
+      },
+    );
+
+    context.read<MainWrapperViewModel>().setIndexByTabKey(targetTab);
+  }
+
+  String _defaultTargetTab(NotificationModel notification) {
+    switch (notification.notificationType) {
+      case 'eve_varis_eta':
+      case 'evden_alim_eta':
+        return 'map';
+      case 'okula_varis':
+      case 'eve_birakildi':
+        return 'home';
+      default:
+        return 'notifications';
+    }
   }
 
   @override
@@ -89,11 +144,7 @@ class _NotificationViewState extends State<NotificationView> {
                 final notification = vm.notifications[index];
                 return _NotificationTile(
                   notification: notification,
-                  onTap: () {
-                    if (!notification.isRead) {
-                      vm.markAsRead(notification.id);
-                    }
-                  },
+                  onTap: () => _handleNotificationTap(notification),
                 );
               },
             ),

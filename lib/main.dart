@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/token_manager.dart';
 import 'core/services/notification_service.dart';
+import 'core/state/selected_student_state.dart';
 import 'features/auth/services/auth_service.dart';
 import 'features/auth/view/login_view.dart';
 import 'features/main_wrapper/view/main_wrapper.dart';
@@ -89,6 +90,7 @@ class _ServisNowVeliAppState extends State<ServisNowVeliApp> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => NotificationViewModel()),
+        ChangeNotifierProvider(create: (_) => SelectedStudentState()),
       ],
       child: MaterialApp(
         navigatorKey: _navigatorKey,

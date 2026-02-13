@@ -48,6 +48,8 @@ class ApiConstants {
       '/api/parent/students/$studentId/address';
   static String parentStudentAbsenceEndpoint(String studentId) =>
       '/api/parent/students/$studentId/absent';
+  static String parentStudentAbsenceStatusEndpoint(String studentId) =>
+      '/api/parent/students/$studentId/absence/status';
   static String parentStudentAttendanceHistoryEndpoint(String studentId) =>
       '/api/parent/students/$studentId/attendance/history';
 

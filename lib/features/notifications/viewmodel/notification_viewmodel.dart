@@ -35,8 +35,12 @@ class NotificationViewModel extends ChangeNotifier {
 
       if (refresh) {
         _notifications = newNotifications;
+        _unreadCount = _notifications.where((n) => !n.isRead).length;
       } else {
         _notifications.addAll(newNotifications);
+        if (_unreadCount == 0) {
+          _unreadCount = _notifications.where((n) => !n.isRead).length;
+        }
       }
     } catch (e) {
       _error = 'Bildirimler yüklenemedi';
@@ -63,9 +67,14 @@ class NotificationViewModel extends ChangeNotifier {
       await _repository.markAsRead(notificationId);
       final index = _notifications.indexWhere((n) => n.id == notificationId);
       if (index != -1) {
+        final wasUnread = !_notifications[index].isRead;
         _notifications[index] = _notifications[index].copyWith(isRead: true);
-        _unreadCount = (_unreadCount - 1).clamp(0, 999);
+        if (wasUnread) {
+          _unreadCount = (_unreadCount - 1).clamp(0, 999);
+        }
         notifyListeners();
+      } else {
+        await fetchUnreadCount();
       }
     } catch (e) {
       debugPrint('Mark as read error: $e');

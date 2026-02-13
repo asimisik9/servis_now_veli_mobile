@@ -110,7 +110,8 @@ class _LoginViewState extends State<LoginView> {
                         hint: "ornek@email.com",
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
-                        prefixIcon: const Icon(Icons.email_outlined, color: AppColors.primary),
+                        prefixIcon: const Icon(Icons.email_outlined,
+                            color: AppColors.primary),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Lütfen e-posta adresinizi girin';
@@ -127,7 +128,8 @@ class _LoginViewState extends State<LoginView> {
                         hint: "******",
                         controller: _passwordController,
                         obscureText: true,
-                        prefixIcon: const Icon(Icons.lock_outline, color: AppColors.primary),
+                        prefixIcon: const Icon(Icons.lock_outline,
+                            color: AppColors.primary),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Lütfen şifrenizi girin';
@@ -138,21 +140,6 @@ class _LoginViewState extends State<LoginView> {
                           return null;
                         },
                       ),
-                      
-                      // Forgot Password
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () {
-                            // TODO: Navigate to forgot password
-                          },
-                          child: const Text(
-                            "Şifremi Unuttum?",
-                            style: TextStyle(color: AppColors.accent),
-                          ),
-                        ),
-                      ),
-
                       SizedBox(height: size.height * 0.05),
 
                       // Login Button
@@ -161,7 +148,7 @@ class _LoginViewState extends State<LoginView> {
                         onPressed: _onLoginPressed,
                         isLoading: _viewModel.isLoading,
                       ),
-                      
+
                       SizedBox(height: size.height * 0.05),
                     ],
                   ),

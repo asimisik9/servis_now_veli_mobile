@@ -4,7 +4,9 @@ class NotificationModel {
   final String title;
   final String message;
   final String notificationType;
+  final String? targetTab;
   final String? studentId;
+  final String? eventId;
   final String status;
   final bool isRead;
   final DateTime createdAt;
@@ -15,7 +17,9 @@ class NotificationModel {
     required this.title,
     required this.message,
     required this.notificationType,
+    this.targetTab,
     this.studentId,
+    this.eventId,
     required this.status,
     required this.isRead,
     required this.createdAt,
@@ -28,7 +32,9 @@ class NotificationModel {
       title: json['title'] as String? ?? 'Servis Now',
       message: json['message'] as String,
       notificationType: json['notification_type'] as String? ?? 'genel',
+      targetTab: json['target_tab'] as String? ?? json['targetTab'] as String?,
       studentId: json['student_id'] as String?,
+      eventId: json['event_id'] as String? ?? json['eventId'] as String?,
       status: json['status'] as String,
       isRead: json['is_read'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
@@ -41,7 +47,9 @@ class NotificationModel {
     String? title,
     String? message,
     String? notificationType,
+    String? targetTab,
     String? studentId,
+    String? eventId,
     String? status,
     bool? isRead,
     DateTime? createdAt,
@@ -52,7 +60,9 @@ class NotificationModel {
       title: title ?? this.title,
       message: message ?? this.message,
       notificationType: notificationType ?? this.notificationType,
+      targetTab: targetTab ?? this.targetTab,
       studentId: studentId ?? this.studentId,
+      eventId: eventId ?? this.eventId,
       status: status ?? this.status,
       isRead: isRead ?? this.isRead,
       createdAt: createdAt ?? this.createdAt,

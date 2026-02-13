@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../../../core/constants/app_colors.dart';
+import '../../../core/state/selected_student_state.dart';
 import '../viewmodel/home_view_model.dart';
 import 'widgets/eta_card.dart';
 import 'widgets/driver_info_card.dart';
@@ -18,10 +21,10 @@ class _HomeViewState extends State<HomeView> {
   @override
   void initState() {
     super.initState();
-    _viewModel = HomeViewModel();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _viewModel.fetchHomeData();
-    });
+    _viewModel = HomeViewModel(
+      selectedStudentState: context.read<SelectedStudentState>(),
+    );
+    _viewModel.init();
   }
 
   @override
@@ -120,6 +123,42 @@ class _HomeViewState extends State<HomeView> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      if (_viewModel.hasMultipleStudents) ...[
+                        SizedBox(height: size.height * 0.015),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _viewModel.selectedStudentId,
+                              isExpanded: true,
+                              dropdownColor: AppColors.primary,
+                              iconEnabledColor: Colors.white,
+                              style: const TextStyle(color: Colors.white),
+                              items: _viewModel.students
+                                  .map(
+                                    (student) => DropdownMenuItem<String>(
+                                      value: student.id,
+                                      child: Text(
+                                        student.fullName,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (studentId) {
+                                if (studentId == null) {
+                                  return;
+                                }
+                                _viewModel.selectStudent(studentId);
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

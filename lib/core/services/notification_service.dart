@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
@@ -23,8 +24,14 @@ class NotificationService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
+  final StreamController<Map<String, dynamic>> _tapPayloadController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   bool _initialized = false;
+  Map<String, dynamic>? _pendingNavigationPayload;
+
+  Stream<Map<String, dynamic>> get tapPayloadStream =>
+      _tapPayloadController.stream;
 
   // Android notification channel
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
@@ -191,23 +198,97 @@ class NotificationService {
 
   /// Handle notification tap when app is in background
   void _handleNotificationTap(RemoteMessage message) {
-    debugPrint('🔔 Notification tapped: ${message.data}');
-    // TODO: Navigate to specific screen based on notification_type
-    // final type = message.data['notification_type'];
-    // final studentId = message.data['student_id'];
+    final payload = _normalizePayload(message.data);
+    if (payload == null) {
+      debugPrint('🔔 Notification payload ignored: ${message.data}');
+      return;
+    }
+
+    debugPrint('🔔 Notification tapped payload: $payload');
+    _emitNavigationPayload(payload);
   }
 
   /// Handle local notification tap
   void _handleLocalNotificationTap(String payload) {
-    debugPrint('🔔 Local notification tapped: $payload');
-    // TODO: Navigate to specific screen based on notification data
-    // final data = jsonDecode(payload) as Map<String, dynamic>;
-    // final type = data['notification_type'];
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map) {
+        return;
+      }
+
+      final normalized = _normalizePayload(Map<String, dynamic>.from(decoded));
+      if (normalized == null) {
+        debugPrint('🔔 Local payload ignored: $payload');
+        return;
+      }
+
+      debugPrint('🔔 Local notification tapped payload: $normalized');
+      _emitNavigationPayload(normalized);
+    } catch (e) {
+      debugPrint('🔔 Local payload parse error: $e');
+    }
   }
 
   /// Token refresh callback
   void _onTokenRefresh(String token) {
     debugPrint('🔔 FCM token refreshed');
     _registerTokenWithBackend(token);
+  }
+
+  Map<String, dynamic>? takePendingNavigationPayload() {
+    final payload = _pendingNavigationPayload;
+    _pendingNavigationPayload = null;
+    return payload;
+  }
+
+  void _emitNavigationPayload(Map<String, dynamic> payload) {
+    if (!_tapPayloadController.isClosed && _tapPayloadController.hasListener) {
+      _pendingNavigationPayload = null;
+      _tapPayloadController.add(payload);
+      return;
+    }
+
+    _pendingNavigationPayload = payload;
+  }
+
+  Map<String, dynamic>? _normalizePayload(Map<dynamic, dynamic> rawPayload) {
+    if (rawPayload.isEmpty) {
+      return null;
+    }
+
+    final payload = <String, dynamic>{};
+    for (final entry in rawPayload.entries) {
+      final key = entry.key.toString();
+      payload[key] = entry.value;
+    }
+
+    final notificationType = payload['notification_type']?.toString();
+    final targetTabRaw = payload['target_tab']?.toString();
+    final targetTab = (targetTabRaw == null || targetTabRaw.trim().isEmpty)
+        ? _defaultTargetTab(notificationType)
+        : targetTabRaw.trim().toLowerCase();
+
+    payload['notification_type'] =
+        (notificationType == null || notificationType.trim().isEmpty)
+            ? 'genel'
+            : notificationType.trim().toLowerCase();
+    payload['target_tab'] = targetTab;
+    payload['student_id'] = payload['student_id']?.toString() ?? '';
+    payload['event_id'] = payload['event_id']?.toString() ?? '';
+
+    return payload;
+  }
+
+  String _defaultTargetTab(String? notificationType) {
+    switch (notificationType?.trim().toLowerCase()) {
+      case 'eve_varis_eta':
+      case 'evden_alim_eta':
+        return 'map';
+      case 'okula_varis':
+      case 'eve_birakildi':
+        return 'home';
+      default:
+        return 'notifications';
+    }
   }
 }
