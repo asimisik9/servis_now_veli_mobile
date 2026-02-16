@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -39,6 +40,7 @@ class MapViewModel extends ChangeNotifier {
   String? get selectedStudentId => _selectedStudentState.selectedStudent?.id;
 
   Timer? _serviceStatusTimer;
+  Timer? _wsReconnectTimer;
   StreamSubscription<LatLng>? _locationSubscription;
 
   String? _currentStudentId;
@@ -112,6 +114,8 @@ class MapViewModel extends ChangeNotifier {
 
       if (stateChanged || initialLoad) {
         await _startLiveTracking(studentId);
+      } else if (_locationSubscription == null) {
+        await _startLiveTracking(studentId);
       } else if (_busLocation == null) {
         await _fetchLiveLocation(studentId);
       }
@@ -144,17 +148,21 @@ class MapViewModel extends ChangeNotifier {
 
     _activeBusId = busId;
     _trackingStartedAt = DateTime.now();
+    _cancelWsReconnect();
     await _locationSubscription?.cancel();
     final stream = _mapService.connectToBusLocationStream(busId);
     _locationSubscription = stream?.listen(
       (location) {
+        _cancelWsReconnect(resetAttempt: true);
         _updateBusLocation(location);
       },
       onError: (error) {
         debugPrint('WebSocket error in MapViewModel: $error');
+        _scheduleWsReconnect(studentId);
       },
       onDone: () {
         debugPrint('WebSocket connection closed');
+        _scheduleWsReconnect(studentId);
       },
     );
   }
@@ -212,6 +220,36 @@ class MapViewModel extends ChangeNotifier {
     });
   }
 
+  void _cancelWsReconnect({bool resetAttempt = false}) {
+    _wsReconnectTimer?.cancel();
+    _wsReconnectTimer = null;
+    if (resetAttempt) {
+      _wsReconnectAttempt = 0;
+    }
+  }
+
+  int _wsReconnectAttempt = 0;
+
+  void _scheduleWsReconnect(String studentId) {
+    if (_currentStudentId != studentId || !_isServiceActive) {
+      return;
+    }
+    if (_activeBusId == null || _wsReconnectTimer != null) {
+      return;
+    }
+
+    final delaySeconds = math.min(30, math.pow(2, _wsReconnectAttempt).toInt());
+    _wsReconnectAttempt = math.min(_wsReconnectAttempt + 1, 6);
+
+    _wsReconnectTimer = Timer(Duration(seconds: delaySeconds), () async {
+      _wsReconnectTimer = null;
+      if (_currentStudentId != studentId || !_isServiceActive) {
+        return;
+      }
+      await _startLiveTracking(studentId);
+    });
+  }
+
   Future<void> _pollServiceStatus() async {
     if (_currentStudentId == null) {
       return;
@@ -253,6 +291,7 @@ class MapViewModel extends ChangeNotifier {
 
   void _clearBusLocation({required bool clearSubscription}) {
     if (clearSubscription) {
+      _cancelWsReconnect(resetAttempt: true);
       _locationSubscription?.cancel();
       _locationSubscription = null;
       _activeBusId = null;
@@ -267,6 +306,7 @@ class MapViewModel extends ChangeNotifier {
     _selectedStudentState.removeListener(_onSelectedStudentChanged);
     _locationSubscription?.cancel();
     _serviceStatusTimer?.cancel();
+    _wsReconnectTimer?.cancel();
     super.dispose();
   }
 }

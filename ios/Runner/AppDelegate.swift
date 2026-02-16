@@ -13,7 +13,17 @@ import UserNotifications
     if FirebaseApp.app() == nil {
       FirebaseApp.configure()
     }
-    GMSServices.provideAPIKey("AIzaSyBMzWnyDQ7FvTmf3iKgDwFW_3bWy1mwSr0")
+#if !DEBUG
+    if let bundleId = Bundle.main.bundleIdentifier, bundleId.hasPrefix("com.example.") {
+      fatalError("Release build requires non-placeholder iOS bundle identifier.")
+    }
+#endif
+    if let mapsApiKey = Bundle.main.object(forInfoDictionaryKey: "GOOGLE_MAPS_API_KEY") as? String,
+       !mapsApiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+      GMSServices.provideAPIKey(mapsApiKey)
+    } else {
+      assertionFailure("GOOGLE_MAPS_API_KEY is missing in Info.plist")
+    }
     GeneratedPluginRegistrant.register(with: self)
 
     // Push notification registration

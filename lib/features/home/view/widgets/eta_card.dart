@@ -14,6 +14,7 @@ class EtaCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final safeMinutes = minutesLeft?.clamp(0, 999);
 
     return Container(
       width: double.infinity,
@@ -44,13 +45,13 @@ class EtaCard extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
-          if (!isInactive && minutesLeft != null) ...[
+          if (!isInactive && safeMinutes != null) ...[
             SizedBox(height: size.height * 0.01),
             RichText(
               text: TextSpan(
                 children: [
                   TextSpan(
-                    text: "$minutesLeft",
+                    text: "$safeMinutes",
                     style: TextStyle(
                       fontSize: size.width * 0.1,
                       fontWeight: FontWeight.bold,
@@ -66,6 +67,16 @@ class EtaCard extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ] else if (!isInactive) ...[
+            SizedBox(height: size.height * 0.01),
+            Text(
+              "Hesaplanıyor...",
+              style: TextStyle(
+                fontSize: size.width * 0.045,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
               ),
             ),
           ],

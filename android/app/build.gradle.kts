@@ -1,9 +1,62 @@
+import org.gradle.api.GradleException
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
+}
+
+val requestedTasks = gradle.startParameter.taskNames.joinToString(" ").lowercase()
+val isReleaseTask = requestedTasks.contains("release")
+
+val configuredApplicationId =
+    (project.findProperty("PARENT_ANDROID_APPLICATION_ID") as String?)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+
+val mapsApiKey =
+    (project.findProperty("PARENT_GOOGLE_MAPS_API_KEY") as String?)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?: System.getenv("PARENT_GOOGLE_MAPS_API_KEY")
+        ?: ""
+
+val releaseStoreFile =
+    (project.findProperty("PARENT_RELEASE_STORE_FILE") as String?)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+val releaseStorePassword =
+    (project.findProperty("PARENT_RELEASE_STORE_PASSWORD") as String?)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+val releaseKeyAlias =
+    (project.findProperty("PARENT_RELEASE_KEY_ALIAS") as String?)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+val releaseKeyPassword =
+    (project.findProperty("PARENT_RELEASE_KEY_PASSWORD") as String?)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+
+val hasReleaseSigning =
+    !releaseStoreFile.isNullOrBlank() &&
+        !releaseStorePassword.isNullOrBlank() &&
+        !releaseKeyAlias.isNullOrBlank() &&
+        !releaseKeyPassword.isNullOrBlank()
+
+if (isReleaseTask) {
+    if (configuredApplicationId.isNullOrBlank() || configuredApplicationId.startsWith("com.example")) {
+        throw GradleException(
+            "Release build requires non-placeholder PARENT_ANDROID_APPLICATION_ID (e.g. -PPARENT_ANDROID_APPLICATION_ID=com.servisnow.parent)."
+        )
+    }
+    if (!hasReleaseSigning) {
+        throw GradleException(
+            "Release signing config is missing. Set PARENT_RELEASE_STORE_FILE, PARENT_RELEASE_STORE_PASSWORD, PARENT_RELEASE_KEY_ALIAS, PARENT_RELEASE_KEY_PASSWORD."
+        )
+    }
 }
 
 android {
@@ -20,22 +73,35 @@ android {
         jvmTarget = JavaVersion.VERSION_11.toString()
     }
 
+    signingConfigs {
+        create("release") {
+            if (hasReleaseSigning) {
+                storeFile = file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.servis_now_veli_mobile"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        applicationId = configuredApplicationId ?: "com.example.servis_now_veli_mobile"
         minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = mapsApiKey
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig =
+                if (hasReleaseSigning) {
+                    signingConfigs.getByName("release")
+                } else {
+                    signingConfigs.getByName("debug")
+                }
         }
     }
 }

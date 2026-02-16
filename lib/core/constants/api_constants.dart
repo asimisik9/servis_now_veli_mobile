@@ -6,8 +6,19 @@ class ApiConstants {
     'API_BASE_URL',
     defaultValue: '',
   );
+  static const bool _hasApiBaseUrlDefine = bool.hasEnvironment('API_BASE_URL');
+
+  static void ensureBuildConfig() {
+    final fromDefine = _normalizeUrl(_baseUrlFromDefine);
+    if (kReleaseMode && (!_hasApiBaseUrlDefine || fromDefine == null)) {
+      throw StateError(
+        'Release build requires --dart-define=API_BASE_URL=<https://api.example.com>',
+      );
+    }
+  }
 
   static String get baseUrl {
+    ensureBuildConfig();
     final fromDefine = _normalizeUrl(_baseUrlFromDefine);
     if (fromDefine != null) {
       return fromDefine;

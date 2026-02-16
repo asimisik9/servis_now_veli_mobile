@@ -16,13 +16,48 @@ class HomeStatusModel {
   });
 
   factory HomeStatusModel.fromJson(Map<String, dynamic> json) {
+    int? parseInt(List<String> keys) {
+      for (final key in keys) {
+        final value = json[key];
+        if (value is num) {
+          return value.toInt();
+        }
+        if (value is String) {
+          final parsed = int.tryParse(value.trim());
+          if (parsed != null) {
+            return parsed;
+          }
+        }
+      }
+      return null;
+    }
+
+    String? parseString(List<String> keys) {
+      for (final key in keys) {
+        final value = json[key];
+        if (value == null) {
+          continue;
+        }
+        final text = value.toString().trim();
+        if (text.isNotEmpty) {
+          return text;
+        }
+      }
+      return null;
+    }
+
     return HomeStatusModel(
-      tripStatus: json['tripStatus']?.toString(),
-      minutesLeft: (json['minutesLeft'] as num?)?.toInt(),
-      driverName: json['driverName']?.toString(),
-      driverPhone: json['driverPhone']?.toString(),
-      plateNumber: json['plateNumber']?.toString(),
-      busId: json['busId']?.toString(),
+      tripStatus: parseString(['tripStatus', 'trip_status', 'tripType']),
+      minutesLeft: parseInt([
+        'minutesLeft',
+        'minutes_left',
+        'etaMinutes',
+        'eta_minutes',
+      ]),
+      driverName: parseString(['driverName', 'driver_name']),
+      driverPhone: parseString(['driverPhone', 'driver_phone']),
+      plateNumber: parseString(['plateNumber', 'plate_number']),
+      busId: parseString(['busId', 'bus_id']),
     );
   }
 }

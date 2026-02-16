@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
+import 'core/constants/api_constants.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/token_manager.dart';
 import 'core/services/notification_service.dart';
@@ -15,6 +16,7 @@ import 'features/notifications/viewmodel/notification_viewmodel.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ApiConstants.ensureBuildConfig();
 
   // Firebase init
   await Firebase.initializeApp();

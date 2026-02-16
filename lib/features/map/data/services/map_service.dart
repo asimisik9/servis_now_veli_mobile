@@ -70,22 +70,39 @@ class MapService {
 
       debugPrint("Connecting to WS: $wsUri");
       final channel = WebSocketChannel.connect(wsUri);
+      return Stream<LatLng>.multi((controller) {
+        final subscription = channel.stream.listen(
+          (event) {
+            final data = jsonDecode(event);
+            if (data is! Map) {
+              controller.addError(
+                const FormatException('WS payload is not a JSON object'),
+              );
+              return;
+            }
+            final map = Map<String, dynamic>.from(data);
+            final latRaw = map['latitude'];
+            final lngRaw = map['longitude'];
+            if (latRaw is! num || lngRaw is! num) {
+              controller.addError(
+                const FormatException('WS payload missing numeric coordinates'),
+              );
+              return;
+            }
+            controller.add(LatLng(latRaw.toDouble(), lngRaw.toDouble()));
+          },
+          onError: (error) {
+            debugPrint("WS Error: $error");
+            controller.addError(error);
+          },
+          onDone: controller.close,
+          cancelOnError: true,
+        );
 
-      return channel.stream.map((event) {
-        final data = jsonDecode(event);
-        if (data is! Map) {
-          throw const FormatException('WS payload is not a JSON object');
-        }
-        final map = Map<String, dynamic>.from(data);
-        final latRaw = map['latitude'];
-        final lngRaw = map['longitude'];
-        if (latRaw is! num || lngRaw is! num) {
-          throw const FormatException('WS payload missing numeric coordinates');
-        }
-        return LatLng(latRaw.toDouble(), lngRaw.toDouble());
-      }).handleError((error) {
-        debugPrint("WS Error: $error");
-        throw error;
+        controller.onCancel = () async {
+          await subscription.cancel();
+          await channel.sink.close();
+        };
       });
     } catch (e) {
       debugPrint("Error creating WS connection: $e");
