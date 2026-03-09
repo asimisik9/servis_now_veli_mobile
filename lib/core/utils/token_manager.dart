@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/auth_user.dart';
 
@@ -8,6 +8,11 @@ class TokenManager {
   static final TokenManager _instance = TokenManager._internal();
   factory TokenManager() => _instance;
   TokenManager._internal();
+
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
 
   String? _accessToken;
   String? _refreshToken;
@@ -19,10 +24,9 @@ class TokenManager {
   bool get hasSession => _accessToken != null && _refreshToken != null;
 
   Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
-    _accessToken = prefs.getString('access_token');
-    _refreshToken = prefs.getString('refresh_token');
-    final userJson = prefs.getString('auth_user');
+    _accessToken = await _storage.read(key: 'access_token');
+    _refreshToken = await _storage.read(key: 'refresh_token');
+    final userJson = await _storage.read(key: 'auth_user');
     if (userJson != null && userJson.isNotEmpty) {
       try {
         final decoded = jsonDecode(userJson);
@@ -47,18 +51,16 @@ class TokenManager {
     if (user != null) {
       _user = user;
     }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('access_token', accessToken);
-    await prefs.setString('refresh_token', refreshToken);
+    await _storage.write(key: 'access_token', value: accessToken);
+    await _storage.write(key: 'refresh_token', value: refreshToken);
     if (_user != null) {
-      await prefs.setString('auth_user', jsonEncode(_user!.toJson()));
+      await _storage.write(key: 'auth_user', value: jsonEncode(_user!.toJson()));
     }
   }
 
   Future<void> setUser(AuthUser user) async {
     _user = user;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_user', jsonEncode(user.toJson()));
+    await _storage.write(key: 'auth_user', value: jsonEncode(user.toJson()));
   }
 
   Future<void> setSession({
@@ -77,10 +79,9 @@ class TokenManager {
     _accessToken = null;
     _refreshToken = null;
     _user = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-    await prefs.remove('refresh_token');
-    await prefs.remove('auth_user');
+    await _storage.delete(key: 'access_token');
+    await _storage.delete(key: 'refresh_token');
+    await _storage.delete(key: 'auth_user');
   }
 
   Future<void> clearTokens() async {

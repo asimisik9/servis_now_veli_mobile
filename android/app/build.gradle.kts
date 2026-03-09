@@ -60,7 +60,7 @@ if (isReleaseTask) {
 }
 
 android {
-    namespace = "com.example.servis_now_veli_mobile"
+    namespace = "com.servisnow.veli"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -85,7 +85,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = configuredApplicationId ?: "com.example.servis_now_veli_mobile"
+        applicationId = configuredApplicationId ?: "com.servisnow.veli"
         minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

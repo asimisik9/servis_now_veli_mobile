@@ -53,6 +53,25 @@ class MapViewModel extends ChangeNotifier {
     _startServiceStatusPolling();
   }
 
+  /// Called by MapView when the Map tab becomes the active tab.
+  void onTabActivated() {
+    _startServiceStatusPolling();
+    _pollServiceStatus();
+  }
+
+  /// Called by MapView when the user navigates away from the Map tab.
+  void onTabDeactivated() {
+    _serviceStatusTimer?.cancel();
+    _serviceStatusTimer = null;
+    _cancelWsReconnect(resetAttempt: true);
+    _locationSubscription?.cancel();
+    _locationSubscription = null;
+    _activeBusId = null;
+    _busLocation = null;
+    _markers.removeWhere((m) => m.markerId.value == 'bus');
+    notifyListeners();
+  }
+
   void selectStudent(String studentId) {
     _selectedStudentState.selectStudentById(studentId);
   }

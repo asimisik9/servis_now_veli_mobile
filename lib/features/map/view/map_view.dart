@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/state/selected_student_state.dart';
 import '../../home/data/models/home_status_model.dart';
+import '../../main_wrapper/viewmodel/main_wrapper_view_model.dart';
 import '../viewmodel/map_view_model.dart';
 
 class MapView extends StatelessWidget {
@@ -32,6 +33,30 @@ class _MapViewContentState extends State<_MapViewContent> {
   GoogleMapController? _mapController;
   bool _hasMovedToInitialLocation = false;
   String? _lastSelectedStudentId;
+  MainWrapperViewModel? _mainWrapperViewModel;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _mainWrapperViewModel?.removeListener(_onTabChanged);
+    _mainWrapperViewModel = context.read<MainWrapperViewModel>();
+    _mainWrapperViewModel!.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    final mapVm = context.read<MapViewModel>();
+    if (_mainWrapperViewModel?.currentIndex == MainWrapperViewModel.mapTabIndex) {
+      mapVm.onTabActivated();
+    } else {
+      mapVm.onTabDeactivated();
+    }
+  }
+
+  @override
+  void dispose() {
+    _mainWrapperViewModel?.removeListener(_onTabChanged);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

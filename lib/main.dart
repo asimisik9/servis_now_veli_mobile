@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
 import 'core/constants/api_constants.dart';
@@ -20,6 +21,7 @@ void main() async {
 
   // Firebase init
   await Firebase.initializeApp();
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
 
   // Background message handler
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
@@ -41,7 +43,11 @@ void main() async {
   // Notification service
   await NotificationService().init();
 
-  runApp(const ServisNowVeliApp());
+  runZonedGuarded(
+    () => runApp(const ServisNowVeliApp()),
+    (error, stack) =>
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true),
+  );
 }
 
 class ServisNowVeliApp extends StatefulWidget {
