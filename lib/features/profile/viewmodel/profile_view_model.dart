@@ -1,34 +1,26 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/network/api_exceptions.dart';
-import '../../../core/services/analytics_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/state/selected_student_state.dart';
 import '../../../core/utils/token_manager.dart';
 import '../../auth/services/auth_service.dart';
 import '../../home/data/models/home_status_model.dart';
-import '../data/services/profile_service.dart';
 
 class ProfileViewModel extends ChangeNotifier {
-  final ProfileService _profileService;
   final AuthService _authService;
   final NotificationService _notificationService;
   final SelectedStudentState _selectedStudentState;
   final TokenManager _tokenManager;
-  final AnalyticsService _analyticsService;
 
   ProfileViewModel({
     required SelectedStudentState selectedStudentState,
-    ProfileService? profileService,
     AuthService? authService,
     NotificationService? notificationService,
     TokenManager? tokenManager,
-  })  : _profileService = profileService ?? ProfileService(),
-        _authService = authService ?? AuthService(),
+  })  : _authService = authService ?? AuthService(),
         _notificationService = notificationService ?? NotificationService(),
         _selectedStudentState = selectedStudentState,
-        _tokenManager = tokenManager ?? TokenManager(),
-        _analyticsService = AnalyticsService() {
+        _tokenManager = tokenManager ?? TokenManager() {
     _selectedStudentState.addListener(_onSelectedStudentChanged);
   }
 
@@ -83,109 +75,40 @@ class ProfileViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    try {
-      await _selectedStudentState.loadStudents(forceRefresh: refreshStudents);
-      await _loadAbsenceStatusForSelectedStudent();
-    } catch (e) {
-      _errorMessage = _mapError(
-        e,
-        fallback: 'Profil bilgileri alınamadı.',
-      );
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
+    _isAbsent = false;
+    _absenceUpdatedAt = null;
 
-  Future<void> _loadAbsenceStatusForSelectedStudent() async {
-    final student = currentStudent;
-    if (student == null) {
-      _isAbsent = false;
-      _absenceUpdatedAt = null;
-      return;
-    }
-
-    final status = await _profileService.getAbsenceStatus(student.id);
-    _isAbsent = status.isAbsentToday;
-    _absenceUpdatedAt = status.updatedAt;
+    _isLoading = false;
+    notifyListeners();
   }
 
   Future<bool> toggleAbsence(bool value) async {
-    final student = currentStudent;
-    if (student == null || _isAbsenceUpdating) {
-      return false;
-    }
-
+    if (_isAbsenceUpdating) return false;
     _isAbsenceUpdating = true;
-    _errorMessage = null;
     notifyListeners();
 
-    try {
-      final success = value
-          ? await _profileService.cancelAbsence(student.id)
-          : await _profileService.reportAbsence(student.id);
+    _isAbsent = !value;
+    _absenceUpdatedAt = !value ? DateTime.now() : null;
 
-      if (!success) {
-        _errorMessage = value
-            ? 'Devamsızlık kaydı geri alınamadı.'
-            : 'Devamsızlık kaydı gönderilemedi.';
-        return false;
-      }
-
-      await _loadAbsenceStatusForSelectedStudent();
-      _analyticsService.logEvent(
-        'attendance_marked',
-        parameters: <String, Object?>{
-          'role': 'parent',
-          'student_id': student.id,
-          'is_absent_today': _isAbsent,
-        },
-      );
-      return true;
-    } catch (e) {
-      _errorMessage = _mapError(
-        e,
-        fallback: value
-            ? 'Devamsızlık kaydı geri alınamadı.'
-            : 'Devamsızlık kaydı gönderilemedi.',
-      );
-      return false;
-    } finally {
-      _isAbsenceUpdating = false;
-      notifyListeners();
-    }
+    _isAbsenceUpdating = false;
+    notifyListeners();
+    return true;
   }
 
   Future<bool> updateAddress(String newAddress) async {
     final student = currentStudent;
-    if (student == null || _isAddressUpdating) {
-      return false;
-    }
+    if (student == null || _isAddressUpdating) return false;
 
     _isAddressUpdating = true;
-    _errorMessage = null;
     notifyListeners();
 
-    try {
-      final updatedStudent = await _profileService.updateStudentAddress(
-        student.id,
-        newAddress,
-      );
+    _selectedStudentState.updateStudent(
+      student.copyWith(address: newAddress),
+    );
 
-      if (updatedStudent == null) {
-        _errorMessage = 'Adres güncellenemedi.';
-        return false;
-      }
-
-      _selectedStudentState.updateStudent(updatedStudent);
-      return true;
-    } catch (e) {
-      _errorMessage = _mapError(e, fallback: 'Adres güncellenemedi.');
-      return false;
-    } finally {
-      _isAddressUpdating = false;
-      notifyListeners();
-    }
+    _isAddressUpdating = false;
+    notifyListeners();
+    return true;
   }
 
   Future<bool> logout() async {
@@ -202,7 +125,7 @@ class ProfileViewModel extends ChangeNotifier {
       await _authService.logout();
       return true;
     } catch (e) {
-      _errorMessage = _mapError(e, fallback: 'Çıkış yapılamadı.');
+      _errorMessage = 'Çıkış yapılamadı.';
       return false;
     } finally {
       _isLoggingOut = false;
@@ -215,32 +138,10 @@ class ProfileViewModel extends ChangeNotifier {
   }
 
   Future<void> _refreshForSelectedStudent() async {
-    final student = currentStudent;
-    if (student == null) {
-      _isAbsent = false;
-      _absenceUpdatedAt = null;
-      notifyListeners();
-      return;
-    }
-
+    _isAbsent = false;
+    _absenceUpdatedAt = null;
     _errorMessage = null;
     notifyListeners();
-
-    try {
-      await _loadAbsenceStatusForSelectedStudent();
-    } catch (e) {
-      _errorMessage = _mapError(e, fallback: 'Devamsızlık durumu alınamadı.');
-    } finally {
-      notifyListeners();
-    }
-  }
-
-  String _mapError(Object error, {required String fallback}) {
-    if (error is ApiException && error.message.trim().isNotEmpty) {
-      return error.message;
-    }
-    final text = error.toString().replaceAll('Exception: ', '').trim();
-    return text.isEmpty ? fallback : text;
   }
 
   @override

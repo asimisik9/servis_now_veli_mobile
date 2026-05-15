@@ -29,6 +29,11 @@ class MapViewModel extends ChangeNotifier {
   bool _isServiceActive = false;
   bool get isServiceActive => _isServiceActive;
 
+  HomeStatusModel? _serviceInfo;
+  String? get driverName => _serviceInfo?.driverName;
+  String? get driverPhone => _serviceInfo?.driverPhone;
+  String? get plateNumber => _serviceInfo?.plateNumber;
+
   LatLng? _busLocation;
   LatLng? get busLocation => _busLocation;
 
@@ -50,7 +55,6 @@ class MapViewModel extends ChangeNotifier {
 
   void init() {
     _initializeData();
-    _startServiceStatusPolling();
   }
 
   /// Called by MapView when the Map tab becomes the active tab.
@@ -80,18 +84,24 @@ class MapViewModel extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    try {
-      await _selectedStudentState.loadStudents();
-      _currentStudentId = _selectedStudentState.selectedStudent?.id;
-      await _syncServiceState(initialLoad: true);
-    } catch (e) {
-      debugPrint('Error initializing map data: $e');
-      _isServiceActive = false;
-      _clearBusLocation(clearSubscription: true);
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    _currentStudentId = _selectedStudentState.selectedStudent?.id;
+    _loadMockServiceData();
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  void _loadMockServiceData() {
+    _isServiceActive = true;
+    _serviceInfo = HomeStatusModel(
+      tripStatus: 'to_school',
+      minutesLeft: 8,
+      driverName: 'Ahmet Yılmaz',
+      driverPhone: '0532 123 45 67',
+      plateNumber: '34 AB 1234',
+      busId: 'mock_bus',
+    );
+    _updateBusLocation(const LatLng(41.0422, 28.9877));
   }
 
   Future<void> refreshLocation() async {
@@ -110,39 +120,7 @@ class MapViewModel extends ChangeNotifier {
   }
 
   Future<void> _syncServiceState({required bool initialLoad}) async {
-    final studentId = _currentStudentId;
-    if (studentId == null) {
-      _isServiceActive = false;
-      _clearBusLocation(clearSubscription: true);
-      return;
-    }
-
-    try {
-      final active = await _mapService.checkServiceStatus(studentId);
-      if (_currentStudentId != studentId) {
-        return;
-      }
-
-      final stateChanged = active != _isServiceActive;
-      _isServiceActive = active;
-
-      if (!active) {
-        _clearBusLocation(clearSubscription: true);
-        return;
-      }
-
-      if (stateChanged || initialLoad) {
-        await _startLiveTracking(studentId);
-      } else if (_locationSubscription == null) {
-        await _startLiveTracking(studentId);
-      } else if (_busLocation == null) {
-        await _fetchLiveLocation(studentId);
-      }
-    } catch (e) {
-      debugPrint('Error checking service status: $e');
-      _isServiceActive = false;
-      _clearBusLocation(clearSubscription: true);
-    }
+    _loadMockServiceData();
   }
 
   Future<void> _startLiveTracking(String studentId) async {
@@ -294,18 +272,13 @@ class MapViewModel extends ChangeNotifier {
   Future<void> _switchStudent(String? studentId) async {
     _currentStudentId = studentId;
     _isLoading = true;
-    _isServiceActive = false;
-    _trackingStartedAt = null;
-    _firstLocationLoggedStudentId = null;
     _clearBusLocation(clearSubscription: true);
     notifyListeners();
 
-    try {
-      await _syncServiceState(initialLoad: true);
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    _loadMockServiceData();
+
+    _isLoading = false;
+    notifyListeners();
   }
 
   void _clearBusLocation({required bool clearSubscription}) {

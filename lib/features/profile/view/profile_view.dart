@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/state/selected_student_state.dart';
+import '../../../core/theme/app_radius.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/action_tile.dart';
+import '../../../core/widgets/surface_card.dart';
+import '../../auth/view/forgot_password_view.dart';
 import '../../auth/view/login_view.dart';
 import '../viewmodel/profile_view_model.dart';
 
 class ProfileView extends StatelessWidget {
-  const ProfileView({Key? key}) : super(key: key);
+  const ProfileView({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -19,255 +26,230 @@ class ProfileView extends StatelessWidget {
   }
 }
 
-class _ProfileViewContent extends StatelessWidget {
-  const _ProfileViewContent({Key? key}) : super(key: key);
+class _ProfileViewContent extends StatefulWidget {
+  const _ProfileViewContent();
 
-  void _showLogoutDialog(BuildContext context, ProfileViewModel viewModel) {
-    showDialog(
+  @override
+  State<_ProfileViewContent> createState() => _ProfileViewContentState();
+}
+
+class _ProfileViewContentState extends State<_ProfileViewContent> {
+  bool _notifyServiceApproaching = true;
+  bool _notifyArrivalToSchool = true;
+  bool _notifyDelayAlerts = true;
+
+  Future<void> _showLogoutDialog(
+    BuildContext context,
+    ProfileViewModel viewModel,
+  ) async {
+    final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Çıkış Yap"),
-        content:
-            const Text("Uygulamadan çıkış yapmak istediğinize emin misiniz?"),
+        title: const Text('Çıkış Yap'),
+        content: const Text(
+          'Uygulamadan çıkış yapmak istediğinize emin misiniz?',
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("İptal"),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('İptal'),
           ),
           TextButton(
-            onPressed: () async {
-              final success = await viewModel.logout();
-              if (!context.mounted) {
-                return;
-              }
-              Navigator.pop(context); // Close dialog
-              if (success) {
-                Navigator.of(context, rootNavigator: true).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const LoginView()),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Çıkış yapılırken bir hata oluştu."),
-                  ),
-                );
-              }
-            },
-            child: const Text("Çıkış Yap", style: TextStyle(color: Colors.red)),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Çıkış Yap',
+              style: TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),
     );
-  }
 
-  Future<void> _handleAbsenceChange(
-      BuildContext context, bool value, ProfileViewModel viewModel) async {
-    bool success = false;
-
-    if (!value) {
-      // User is trying to set "Not Coming"
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Emin misiniz?"),
-          content: const Text(
-              "Öğrencinin bugün okula gelmeyeceğini bildirmek üzeresiniz. Servis rotası buna göre güncellenecektir."),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text("İptal"),
-            ),
-            ElevatedButton(
-              style:
-                  ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              onPressed: () => Navigator.pop(context, true),
-              child:
-                  const Text("Onayla", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      );
-
-      if (confirmed == true) {
-        success = await viewModel.toggleAbsence(false);
-      }
-    } else {
-      // User is setting back to "Going"
-      success = await viewModel.toggleAbsence(true);
-    }
-
-    if (success || !context.mounted) {
+    if (shouldLogout != true) {
       return;
     }
 
-    final message = viewModel.errorMessage ??
-        'Devamsızlık durumu güncellenemedi. Lütfen tekrar deneyin.';
+    final success = await viewModel.logout();
+    if (!context.mounted) {
+      return;
+    }
+
+    if (success) {
+      Navigator.of(context, rootNavigator: true).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LoginView()),
+      );
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-
-  Widget _buildStudentSelector(ProfileViewModel viewModel) {
-    if (!viewModel.hasMultipleStudents) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: viewModel.selectedStudentId,
-          isExpanded: true,
-          dropdownColor: AppColors.primary,
-          iconEnabledColor: Colors.white,
-          style: const TextStyle(color: Colors.white),
-          items: viewModel.students
-              .map(
-                (student) => DropdownMenuItem<String>(
-                  value: student.id,
-                  child: Text(
-                    student.fullName,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              )
-              .toList(),
-          onChanged: (studentId) {
-            if (studentId == null) {
-              return;
-            }
-            viewModel.selectStudent(studentId);
-          },
+      SnackBar(
+        content: Text(
+          viewModel.errorMessage ?? 'Çıkış yapılırken bir hata oluştu.',
         ),
       ),
     );
   }
 
-  Future<void> _showAddressChangeDialog(
-      BuildContext context, ProfileViewModel viewModel) async {
-    final TextEditingController addressController = TextEditingController(
-      text: viewModel.currentStudent?.address ?? "",
+  void _openForgotPassword(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ForgotPasswordView()),
     );
+  }
 
-    final result = await showDialog<String>(
+  Future<void> _showHelpSupportSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Adres Değişikliği"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text("Lütfen yeni açık adresinizi giriniz:"),
-            const SizedBox(height: 10),
-            TextField(
-              controller: addressController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: "Açık adres...",
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("İptal"),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () => Navigator.pop(context, addressController.text),
-            child: const Text("Kaydet", style: TextStyle(color: Colors.white)),
-          ),
-        ],
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
       ),
-    );
-
-    if (result != null && result.isNotEmpty) {
-      final success = await viewModel.updateAddress(result);
-      if (success && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Adres başarıyla güncellendi.")),
-        );
-      } else if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text("Adres güncellenirken bir hata oluştu.")),
-        );
-      }
-    }
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: AppColors.primary, size: 24),
-        const SizedBox(width: 15),
-        Expanded(
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.lg,
+          ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
+              Center(
+                child: Container(
+                  width: 46,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE5E7EB),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.md),
+              const Text(
+                'Yardım ve Destek',
+                style: AppTextStyles.titleLg,
+              ),
+              const SizedBox(height: AppSpacing.xxs),
               Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
+                'Destek için okulunuzla veya ServisNow Veli destek ekibiyle iletişime geçebilirsiniz.',
+                style: AppTextStyles.bodySm.copyWith(
+                  color: const Color(0xFF6B7280),
                 ),
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStudentsSection(ProfileViewModel viewModel) {
+    final students = viewModel.students;
+
+    if (students.isEmpty) {
+      return SurfaceCard(
+        color: Colors.white,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Text(
+          'Kayıtlı öğrenci bulunamadı.',
+          style: AppTextStyles.bodyMd.copyWith(color: const Color(0xFF374151)),
         ),
-      ],
+      );
+    }
+
+    return Column(
+      children: students.map((student) {
+        final isSelected = student.id == viewModel.selectedStudentId;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+          child: ActionTile(
+            title: student.fullName,
+            subtitle: student.schoolName ?? student.schoolId ?? 'Okul bilgisi yok',
+            leading: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: const Icon(
+                Icons.school_outlined,
+                size: 20,
+                color: AppColors.primaryDark,
+              ),
+            ),
+            trailing: isSelected
+                ? const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.primaryDark,
+                  )
+                : const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF9CA3AF),
+                  ),
+            onTap: () => viewModel.selectStudent(student.id),
+          ),
+        );
+      }).toList(),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = Provider.of<ProfileViewModel>(context);
-    final size = MediaQuery.of(context).size;
+    final viewModel = context.watch<ProfileViewModel>();
+    final student = viewModel.currentStudent;
 
-    if (viewModel.isLoading && viewModel.currentStudent == null) {
+    if (viewModel.isLoading && student == null) {
       return const Scaffold(
-        body:
-            Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primaryDark),
+        ),
       );
     }
 
-    if (viewModel.currentStudent == null && viewModel.errorMessage != null) {
+    if (student == null && viewModel.errorMessage != null) {
       return Scaffold(
+        backgroundColor: Colors.white,
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, color: Colors.red, size: 48),
-                const SizedBox(height: 12),
-                Text(
-                  viewModel.errorMessage!,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: viewModel.reload,
-                  child: const Text('Tekrar Dene'),
-                ),
-              ],
+            padding: const EdgeInsets.all(AppSpacing.screenHorizontal),
+            child: SurfaceCard(
+              color: Colors.white,
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    color: AppColors.error,
+                    size: 48,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    viewModel.errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.bodyMd,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: viewModel.reload,
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(AppSpacing.buttonHeight),
+                        side: const BorderSide(color: Color(0xFFD1D5DB)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                      ),
+                      child: const Text('Tekrar Dene'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -275,286 +257,174 @@ class _ProfileViewContent extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F8),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Header
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.only(
-                top: MediaQuery.of(context).padding.top + 20,
-                bottom: 30,
-                left: 20,
-                right: 20,
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          color: AppColors.primaryDark,
+          onRefresh: viewModel.reload,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenHorizontal,
+              AppSpacing.md,
+              AppSpacing.screenHorizontal,
+              128,
+            ),
+            children: [
+              Text(
+                'Profil',
+                style: AppTextStyles.headlineMd.copyWith(color: AppColors.primaryDark),
               ),
-              decoration: const BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
+              const SizedBox(height: AppSpacing.xxxs),
+              Text(
+                viewModel.parentDisplayName,
+                style: AppTextStyles.bodyMd.copyWith(color: const Color(0xFF4B5563)),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                viewModel.hasMultipleStudents ? 'Çocuklarım' : 'Çocuğum',
+                style: AppTextStyles.titleMd.copyWith(color: AppColors.primaryDark),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _buildStudentsSection(viewModel),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'Bildirim Ayarları',
+                style: AppTextStyles.titleMd.copyWith(color: AppColors.primaryDark),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              SurfaceCard(
+                color: Colors.white,
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                child: Column(
+                  children: [
+                    _SwitchRow(
+                      title: 'Servis yaklaştığında',
+                      value: _notifyServiceApproaching,
+                      onChanged: (value) {
+                        setState(() {
+                          _notifyServiceApproaching = value;
+                        });
+                      },
+                    ),
+                    const Divider(height: 1, color: Color(0xFFE5E7EB)),
+                    _SwitchRow(
+                      title: 'Okula varış',
+                      value: _notifyArrivalToSchool,
+                      onChanged: (value) {
+                        setState(() {
+                          _notifyArrivalToSchool = value;
+                        });
+                      },
+                    ),
+                    const Divider(height: 1, color: Color(0xFFE5E7EB)),
+                    _SwitchRow(
+                      title: 'Gecikme uyarıları',
+                      value: _notifyDelayAlerts,
+                      onChanged: (value) {
+                        setState(() {
+                          _notifyDelayAlerts = value;
+                        });
+                      },
+                    ),
+                  ],
                 ),
               ),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.person,
-                        size: 40, color: Colors.grey.shade400),
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  Text(
-                    viewModel.parentDisplayName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  _buildStudentSelector(viewModel),
-                  if (viewModel.currentStudent != null) ...[
-                    SizedBox(height: size.height * 0.01),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        viewModel.currentStudent!.fullName,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ],
-                ],
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'Genel Ayarlar',
+                style: AppTextStyles.titleMd.copyWith(color: AppColors.primaryDark),
               ),
-            ),
-
-            Padding(
-              padding: EdgeInsets.all(size.width * 0.05),
-              child: Column(
-                children: [
-                  // Absence Card
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                      border: viewModel.isAbsent
-                          ? Border.all(color: Colors.orange, width: 2)
-                          : null,
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: viewModel.isAbsent
-                                        ? Colors.orange.withValues(alpha: 0.1)
-                                        : AppColors.primary
-                                            .withValues(alpha: 0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    viewModel.isAbsent
-                                        ? Icons.warning_amber_rounded
-                                        : Icons.school,
-                                    color: viewModel.isAbsent
-                                        ? Colors.orange
-                                        : AppColors.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 15),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      "Okul Durumu",
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                    Text(
-                                      viewModel.isAbsent
-                                          ? "Gelmeyecek"
-                                          : "Gidiyor",
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: viewModel.isAbsent
-                                            ? Colors.orange
-                                            : Colors.green,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            Switch(
-                              value: !viewModel.isAbsent,
-                              activeThumbColor: AppColors.accent,
-                              inactiveThumbColor: Colors.orange,
-                              inactiveTrackColor: Colors.orange.shade200,
-                              onChanged: (val) => viewModel.isAbsenceUpdating
-                                  ? null
-                                  : _handleAbsenceChange(
-                                      context, val, viewModel),
-                            ),
-                          ],
-                        ),
-                        if (viewModel.isAbsenceUpdating)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 12),
-                            child: LinearProgressIndicator(
-                              minHeight: 3,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        if (viewModel.isAbsent) ...[
-                          const Divider(height: 30),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.info_outline,
-                                    color: Colors.orange, size: 20),
-                                SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    "Bugün izinli olarak işaretlendi.",
-                                    style: TextStyle(
-                                      color: Colors.orange,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  SizedBox(height: size.height * 0.03),
-
-                  // Student Info Card
-                  if (viewModel.currentStudent != null) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "Öğrenci Bilgileri",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          _buildInfoRow(Icons.person, "Ad Soyad",
-                              viewModel.currentStudent!.fullName),
-                          const Divider(height: 30),
-                          _buildInfoRow(
-                            Icons.school,
-                            "Okul",
-                            viewModel.currentStudent!.schoolName ??
-                                viewModel.currentStudent!.schoolId ??
-                                "Okul bilgisi yok",
-                          ),
-                          const Divider(height: 30),
-                          _buildInfoRow(
-                              Icons.location_on,
-                              "Adres",
-                              viewModel.currentStudent!.address ??
-                                  "Adres girilmemiş"),
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: viewModel.isAddressUpdating
-                                  ? null
-                                  : () => _showAddressChangeDialog(
-                                      context, viewModel),
-                              icon: const Icon(Icons.edit_location_alt,
-                                  color: Colors.white),
-                              label: const Text("Adres Değişikliği",
-                                  style: TextStyle(color: Colors.white)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: size.height * 0.03),
-                  ],
-
-                  // Logout Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: viewModel.isLoggingOut
-                          ? null
-                          : () => _showLogoutDialog(context, viewModel),
-                      icon: const Icon(Icons.logout, color: Colors.red),
-                      label: const Text("Çıkış Yap",
-                          style: TextStyle(color: Colors.red)),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        side: const BorderSide(color: Colors.red),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              const SizedBox(height: AppSpacing.sm),
+              ActionTile(
+                title: 'Şifre Değiştir',
+                subtitle: 'Şifrenizi güvenli şekilde yenileyin',
+                leading: const Icon(
+                  Icons.lock_outline_rounded,
+                  color: AppColors.primaryDark,
+                ),
+                onTap: () => _openForgotPassword(context),
               ),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'Yardım ve Destek',
+                style: AppTextStyles.titleMd.copyWith(color: AppColors.primaryDark),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ActionTile(
+                title: 'Yardım Merkezi',
+                subtitle: 'Sık sorulan sorular ve destek kanalları',
+                leading: const Icon(
+                  Icons.support_agent_rounded,
+                  color: AppColors.primaryDark,
+                ),
+                onTap: () => _showHelpSupportSheet(context),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: viewModel.isLoggingOut
+                      ? null
+                      : () => _showLogoutDialog(context, viewModel),
+                  icon: viewModel.isLoggingOut
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.logout_rounded),
+                  label: Text(
+                    viewModel.isLoggingOut ? 'Çıkış yapılıyor...' : 'Çıkış Yap',
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(AppSpacing.buttonHeight),
+                    foregroundColor: AppColors.primaryDark,
+                    side: const BorderSide(color: Color(0xFFD1D5DB)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                    textStyle: AppTextStyles.button,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _SwitchRow extends StatelessWidget {
+  const _SwitchRow({
+    required this.title,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: AppTextStyles.bodyMd.copyWith(color: const Color(0xFF374151)),
+          ),
+        ),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeThumbColor: AppColors.primaryDark,
+          inactiveThumbColor: const Color(0xFF9CA3AF),
+          inactiveTrackColor: const Color(0xFFE5E7EB),
+        ),
+      ],
     );
   }
 }

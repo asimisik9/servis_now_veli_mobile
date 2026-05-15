@@ -1,18 +1,17 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 class ApiConstants {
+  static const String _defaultBaseUrl = 'https://api.servisnowtr.com';
   static const String _baseUrlFromDefine = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: '',
   );
-  static const bool _hasApiBaseUrlDefine = bool.hasEnvironment('API_BASE_URL');
 
   static void ensureBuildConfig() {
     final fromDefine = _normalizeUrl(_baseUrlFromDefine);
-    if (kReleaseMode && (!_hasApiBaseUrlDefine || fromDefine == null)) {
+    if (kReleaseMode && fromDefine == null && _defaultBaseUrl.isEmpty) {
       throw StateError(
-        'Release build requires --dart-define=API_BASE_URL=<https://api.example.com>',
+        'Release build requires a valid API base URL configuration.',
       );
     }
   }
@@ -24,15 +23,7 @@ class ApiConstants {
       return fromDefine;
     }
 
-    if (kIsWeb) {
-      return 'http://127.0.0.1:8000';
-    }
-
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000';
-    }
-
-    return 'http://127.0.0.1:8000';
+    return _defaultBaseUrl;
   }
 
   static String get wsBaseUrl {
@@ -49,6 +40,9 @@ class ApiConstants {
   static const String authRefreshEndpoint = '/api/auth/refresh';
   static const String authLogoutEndpoint = '/api/auth/logout';
   static const String authMeEndpoint = '/api/auth/me';
+  static const String authForgotPasswordEndpoint = '/api/auth/forgot-password';
+  static const String authResetPasswordEndpoint = '/api/auth/reset-password';
+  static const String authChangePasswordEndpoint = '/api/auth/change-password';
 
   static const String parentStudentsEndpoint = '/api/parent/me/students';
   static String parentStudentDashboardEndpoint(String studentId) =>

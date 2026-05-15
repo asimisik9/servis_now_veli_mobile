@@ -15,39 +15,33 @@ import 'features/auth/view/login_view.dart';
 import 'features/main_wrapper/view/main_wrapper.dart';
 import 'features/notifications/viewmodel/notification_viewmodel.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  ApiConstants.ensureBuildConfig();
+void main() {
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    ApiConstants.ensureBuildConfig();
 
-  // Firebase init
-  await Firebase.initializeApp();
-  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    await Firebase.initializeApp();
+    FlutterError.onError =
+        FirebaseCrashlytics.instance.recordFlutterFatalError;
 
-  // Background message handler
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-  // Token manager
-  await TokenManager().init();
+    await TokenManager().init();
 
-  // Recover session from refresh token if needed
-  if (TokenManager().accessToken == null &&
-      TokenManager().refreshToken != null) {
-    await AuthService().refreshSession();
-  }
+    if (TokenManager().accessToken == null &&
+        TokenManager().refreshToken != null) {
+      await AuthService().refreshSession();
+    }
 
-  // Backfill user profile for older sessions that stored only tokens
-  if (TokenManager().accessToken != null && TokenManager().user == null) {
-    await AuthService().fetchCurrentUser();
-  }
+    if (TokenManager().accessToken != null && TokenManager().user == null) {
+      await AuthService().fetchCurrentUser();
+    }
 
-  // Notification service
-  await NotificationService().init();
+    await NotificationService().init();
 
-  runZonedGuarded(
-    () => runApp(const ServisNowVeliApp()),
-    (error, stack) =>
-        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true),
-  );
+    runApp(const ServisNowVeliApp());
+  }, (error, stack) =>
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true));
 }
 
 class ServisNowVeliApp extends StatefulWidget {
@@ -102,7 +96,7 @@ class _ServisNowVeliAppState extends State<ServisNowVeliApp> {
       ],
       child: MaterialApp(
         navigatorKey: _navigatorKey,
-        title: 'Servis Now Veli',
+        title: 'ServisNow Veli',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         home: isLoggedIn ? const MainWrapper() : const LoginView(),

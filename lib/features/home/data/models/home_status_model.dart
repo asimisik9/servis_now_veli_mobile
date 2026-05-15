@@ -79,6 +79,24 @@ class Student {
     this.address,
   });
 
+  Student copyWith({
+    String? id,
+    String? fullName,
+    String? studentNumber,
+    String? schoolId,
+    String? schoolName,
+    String? address,
+  }) {
+    return Student(
+      id: id ?? this.id,
+      fullName: fullName ?? this.fullName,
+      studentNumber: studentNumber ?? this.studentNumber,
+      schoolId: schoolId ?? this.schoolId,
+      schoolName: schoolName ?? this.schoolName,
+      address: address ?? this.address,
+    );
+  }
+
   factory Student.fromJson(Map<String, dynamic> json) {
     return Student(
       id: (json['id'] ?? '').toString(),

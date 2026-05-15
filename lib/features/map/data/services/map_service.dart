@@ -36,8 +36,23 @@ class MapService {
       }
       return false;
     } catch (e) {
-      // If error, assume inactive or handle gracefully
       return false;
+    }
+  }
+
+  Future<HomeStatusModel?> getServiceInfo(String studentId) async {
+    try {
+      final response = await _dio.get(
+        ApiConstants.parentStudentDashboardEndpoint(studentId),
+      );
+      if (response.statusCode == 200 && response.data is Map) {
+        return HomeStatusModel.fromJson(
+          Map<String, dynamic>.from(response.data as Map),
+        );
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 

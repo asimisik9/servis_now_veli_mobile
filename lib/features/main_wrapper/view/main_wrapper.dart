@@ -5,12 +5,13 @@ import 'package:provider/provider.dart';
 
 import '../../../core/services/analytics_service.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/widgets/bottom_nav_bar.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/state/selected_student_state.dart';
-import '../../notifications/view/notification_view.dart';
-import '../../notifications/viewmodel/notification_viewmodel.dart';
 import '../../home/view/home_view.dart';
 import '../../map/view/map_view.dart';
+import '../../notifications/view/notification_view.dart';
+import '../../notifications/viewmodel/notification_viewmodel.dart';
 import '../../profile/view/profile_view.dart';
 import '../viewmodel/main_wrapper_view_model.dart';
 
@@ -43,7 +44,6 @@ class _MainWrapperContentState extends State<_MainWrapperContent> {
       if (!mounted) {
         return;
       }
-      context.read<SelectedStudentState>().loadStudents();
       context.read<NotificationViewModel>().fetchUnreadCount();
       _notificationTapSubscription = NotificationService()
           .tapPayloadStream
@@ -67,10 +67,6 @@ class _MainWrapperContentState extends State<_MainWrapperContent> {
     final selectedStudentState = context.read<SelectedStudentState>();
     final studentId = payload['student_id']?.toString();
     if (studentId != null && studentId.trim().isNotEmpty) {
-      await selectedStudentState.loadStudents();
-      if (!mounted) {
-        return;
-      }
       selectedStudentState.selectStudentById(studentId.trim());
     }
 
@@ -105,7 +101,6 @@ class _MainWrapperContentState extends State<_MainWrapperContent> {
     final unreadCount = context.select<NotificationViewModel, int>(
       (vm) => vm.unreadCount,
     );
-    final size = MediaQuery.of(context).size;
 
     const List<Widget> pages = [
       HomeView(),
@@ -119,15 +114,9 @@ class _MainWrapperContentState extends State<_MainWrapperContent> {
         index: viewModel.currentIndex,
         children: pages,
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: BottomNavBar(
         currentIndex: viewModel.currentIndex,
         onTap: viewModel.setIndex,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: AppColors.accent,
-        unselectedItemColor: Colors.grey,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
-        iconSize: size.width * 0.07,
         items: [
           const BottomNavigationBarItem(
             icon: Icon(Icons.home),
@@ -173,7 +162,7 @@ class _NotificationBadgeIcon extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
             decoration: BoxDecoration(
-              color: Colors.red,
+              color: AppColors.error,
               borderRadius: BorderRadius.circular(10),
             ),
             constraints: const BoxConstraints(minWidth: 16, minHeight: 16),

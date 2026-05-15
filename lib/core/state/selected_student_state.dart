@@ -34,7 +34,7 @@ class SelectedStudentState extends ChangeNotifier {
 
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    Future.microtask(notifyListeners);
 
     try {
       final fetchedStudents = await _studentService.fetchStudents();
@@ -60,6 +60,12 @@ class SelectedStudentState extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  void setMockStudents(List<Student> students) {
+    _students = List.unmodifiable(students);
+    _selectedStudent = students.isNotEmpty ? students.first : null;
+    notifyListeners();
   }
 
   void selectStudentById(String studentId) {

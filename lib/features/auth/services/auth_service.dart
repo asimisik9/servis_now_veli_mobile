@@ -7,6 +7,7 @@ import '../../../core/models/auth_user.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../../../core/network/error_message_parser.dart';
 import '../../../core/utils/token_manager.dart';
+import '../models/auth_action_result.dart';
 
 class AuthService {
   AuthService._internal();
@@ -82,6 +83,56 @@ class AuthService {
         _extractMessage(
           e.response?.data,
           fallback: 'Giriş başarısız.',
+        ),
+        statusCode: e.response?.statusCode,
+        responseBody: e.response?.data?.toString(),
+      );
+    }
+  }
+
+  Future<AuthActionResult> forgotPassword({
+    required String email,
+  }) async {
+    final dio = _buildAuthDio();
+    try {
+      final response = await dio.post(
+        ApiConstants.authForgotPasswordEndpoint,
+        data: {'email': email},
+      );
+
+      return AuthActionResult.fromJson(_toMap(response.data));
+    } on DioException catch (e) {
+      throw ApiException(
+        _extractMessage(
+          e.response?.data,
+          fallback: 'Şifre sıfırlama isteği gönderilemedi.',
+        ),
+        statusCode: e.response?.statusCode,
+        responseBody: e.response?.data?.toString(),
+      );
+    }
+  }
+
+  Future<AuthActionResult> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    final dio = _buildAuthDio();
+    try {
+      final response = await dio.post(
+        ApiConstants.authResetPasswordEndpoint,
+        data: {
+          'token': token,
+          'new_password': newPassword,
+        },
+      );
+
+      return AuthActionResult.fromJson(_toMap(response.data));
+    } on DioException catch (e) {
+      throw ApiException(
+        _extractMessage(
+          e.response?.data,
+          fallback: 'Şifre güncellenemedi.',
         ),
         statusCode: e.response?.statusCode,
         responseBody: e.response?.data?.toString(),

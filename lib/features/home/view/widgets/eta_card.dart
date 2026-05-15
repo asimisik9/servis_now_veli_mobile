@@ -1,85 +1,135 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/surface_card.dart';
 
 class EtaCard extends StatelessWidget {
-  final int? minutesLeft;
-  final bool isInactive;
-
   const EtaCard({
-    Key? key,
+    super.key,
     this.minutesLeft,
     this.isInactive = false,
-  }) : super(key: key);
+    required this.tripLabel,
+  });
+
+  final int? minutesLeft;
+  final bool isInactive;
+  final String tripLabel;
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
     final safeMinutes = minutesLeft?.clamp(0, 999);
+    final progress = safeMinutes == null
+        ? 0.35
+        : (1 - (safeMinutes / 60)).clamp(0.12, 0.96).toDouble();
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(size.width * 0.05),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return SurfaceCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            isInactive ? Icons.bus_alert : Icons.directions_bus,
-            size: size.width * 0.12,
-            color: isInactive ? Colors.grey : AppColors.accent,
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: (isInactive ? AppColors.surfaceLow : AppColors.primarySoft)
+                      .withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                ),
+                child: Icon(
+                  isInactive ? Icons.bus_alert_rounded : Icons.directions_bus_rounded,
+                  color: isInactive ? AppColors.textSecondary : AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isInactive ? 'Servis Durumu' : 'Tahmini Varış',
+                      style: AppTextStyles.labelSm,
+                    ),
+                    const SizedBox(height: AppSpacing.xxxs),
+                    Text(
+                      isInactive ? 'Rota şu an aktif değil' : tripLabel,
+                      style: AppTextStyles.titleMd,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          SizedBox(height: size.height * 0.02),
-          Text(
-            isInactive ? "Servis şu an aktif değil" : "Tahmini Varış",
-            style: TextStyle(
-              fontSize: size.width * 0.04,
-              color: AppColors.textSecondary,
-            ),
-          ),
+          const SizedBox(height: AppSpacing.md),
           if (!isInactive && safeMinutes != null) ...[
-            SizedBox(height: size.height * 0.01),
             RichText(
               text: TextSpan(
                 children: [
                   TextSpan(
-                    text: "$safeMinutes",
-                    style: TextStyle(
-                      fontSize: size.width * 0.1,
-                      fontWeight: FontWeight.bold,
+                    text: '$safeMinutes',
+                    style: AppTextStyles.headlineLg.copyWith(
                       color: AppColors.primary,
                     ),
                   ),
                   TextSpan(
-                    text: " Dakika",
-                    style: TextStyle(
-                      fontSize: size.width * 0.05,
-                      fontWeight: FontWeight.bold,
+                    text: ' dk',
+                    style: AppTextStyles.titleLg.copyWith(
                       color: AppColors.primary,
                     ),
                   ),
                 ],
               ),
             ),
-          ] else if (!isInactive) ...[
-            SizedBox(height: size.height * 0.01),
+          ] else
             Text(
-              "Hesaplanıyor...",
-              style: TextStyle(
-                fontSize: size.width * 0.045,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
+              isInactive ? 'Servis yeniden hareket ettiğinde süre gösterilecek.' : 'Süre hesaplanıyor...',
+              style: AppTextStyles.bodyMd,
+            ),
+          const SizedBox(height: AppSpacing.md),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            child: SizedBox(
+              height: 10,
+              child: Stack(
+                children: [
+                  Container(color: AppColors.surfaceContainer),
+                  FractionallySizedBox(
+                    widthFactor: progress,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            AppColors.accent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Çıkış',
+                style: AppTextStyles.labelSm,
+              ),
+              Text(
+                isInactive ? 'Beklemede' : 'Varış',
+                style: AppTextStyles.labelSm.copyWith(
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
