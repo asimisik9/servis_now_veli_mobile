@@ -499,16 +499,16 @@ class _NotificationCard extends StatelessWidget {
       case 'sabah_servis_geliyor':
         return 'Sabah Servisi';
       case 'evden_alindi':
-        return 'Sabah Servisi';
+        return 'Servise Bindi';
       case 'okula_varildi':
       case 'okula_varis':
         return 'Okul';
       case 'okuldan_bindi':
-        return 'Akşam Servisi';
+        return 'Servise Bindi';
       case 'eve_servis_geliyor':
         return 'Akşam Servisi';
       case 'eve_birakildi':
-        return 'Akşam Servisi';
+        return 'Servisten İndi';
       case 'gecikme':
         return 'Gecikme';
       case 'eve_varis_eta':
