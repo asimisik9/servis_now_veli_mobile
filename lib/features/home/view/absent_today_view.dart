@@ -15,12 +15,18 @@ class AbsentTodayView extends StatefulWidget {
   });
 
   final Student student;
-  final Future<String?> Function(List<String> serviceTypes, String? note)
-      onSubmit;
+  final Future<String?> Function(
+    List<String> serviceTypes,
+    String? note,
+    DateTime startDate,
+    DateTime? endDate,
+  ) onSubmit;
 
   @override
   State<AbsentTodayView> createState() => _AbsentTodayViewState();
 }
+
+enum _DateMode { single, range }
 
 class _AbsentTodayViewState extends State<AbsentTodayView> {
   bool _morningSelected = true;
@@ -28,38 +34,42 @@ class _AbsentTodayViewState extends State<AbsentTodayView> {
   final TextEditingController _noteController = TextEditingController();
   bool _isLoading = false;
 
+  _DateMode _dateMode = _DateMode.single;
+  late DateTime _selectedDate;
+  late DateTime _startDate;
+  DateTime? _endDate;
+
   static const List<String> _monthsTR = [
-    'Ocak',
-    'Şubat',
-    'Mart',
-    'Nisan',
-    'Mayıs',
-    'Haziran',
-    'Temmuz',
-    'Ağustos',
-    'Eylül',
-    'Ekim',
-    'Kasım',
-    'Aralık',
+    'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+    'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
   ];
-
   static const List<String> _dayNamesTR = [
-    'Pazartesi',
-    'Salı',
-    'Çarşamba',
-    'Perşembe',
-    'Cuma',
-    'Cumartesi',
-    'Pazar',
+    'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar',
+  ];
+  static const List<String> _dayAbbrTR = [
+    'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz',
   ];
 
-  String _formatTodayTR() {
-    final now = DateTime.now();
-    final day = now.day;
-    final month = _monthsTR[now.month - 1];
-    // weekday: 1=Monday … 7=Sunday
-    final dayName = _dayNamesTR[now.weekday - 1];
-    return '$day $month $dayName (Bugün)';
+  @override
+  void initState() {
+    super.initState();
+    final today = _today();
+    _selectedDate = today;
+    _startDate = today;
+  }
+
+  DateTime _today() {
+    final n = DateTime.now();
+    return DateTime(n.year, n.month, n.day);
+  }
+
+  String _formatDateTR(DateTime dt, {bool showToday = true}) {
+    final today = _today();
+    final day = dt.day;
+    final month = _monthsTR[dt.month - 1];
+    final dayName = _dayNamesTR[dt.weekday - 1];
+    final suffix = (showToday && dt == today) ? ' (Bugün)' : '';
+    return '$day $month, $dayName$suffix';
   }
 
   List<String> get _selectedServiceTypes {
@@ -69,15 +79,61 @@ class _AbsentTodayViewState extends State<AbsentTodayView> {
     return types;
   }
 
-  bool get _canSubmit => _morningSelected || _eveningSelected;
+  bool get _canSubmit {
+    if (!_morningSelected && !_eveningSelected) return false;
+    if (_dateMode == _DateMode.range && _endDate == null) return false;
+    return true;
+  }
+
+  Future<void> _pickDate({required bool isStart}) async {
+    final today = _today();
+    final initialDate = isStart ? _startDate : (_endDate ?? _startDate);
+    final firstDate = isStart ? today : _startDate;
+    final lastDate = today.add(const Duration(days: 60));
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate.isBefore(firstDate) ? firstDate : initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      locale: const Locale('tr'),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: AppColors.primaryDark,
+            onPrimary: Colors.white,
+            surface: Colors.white,
+            onSurface: AppColors.primaryDark,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked == null) return;
+
+    setState(() {
+      if (isStart) {
+        _startDate = picked;
+        if (_endDate != null && _endDate!.isBefore(_startDate)) {
+          _endDate = null;
+        }
+      } else {
+        _endDate = picked;
+      }
+    });
+  }
 
   Future<void> _submit() async {
     if (!_canSubmit || _isLoading) return;
     setState(() => _isLoading = true);
     final note = _noteController.text.trim();
+    final startDate = _dateMode == _DateMode.single ? _selectedDate : _startDate;
+    final endDate = _dateMode == _DateMode.range ? _endDate : null;
     final error = await widget.onSubmit(
       _selectedServiceTypes,
       note.isEmpty ? null : note,
+      startDate,
+      endDate,
     );
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -113,7 +169,6 @@ class _AbsentTodayViewState extends State<AbsentTodayView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: AppSpacing.md),
-                    // Header row with close button
                     Row(
                       children: [
                         GestureDetector(
@@ -137,21 +192,21 @@ class _AbsentTodayViewState extends State<AbsentTodayView> {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     Text(
-                      'Bugün Servise Binmeyecek',
+                      'Servise Binmeyecek',
                       style: AppTextStyles.headlineMd.copyWith(
                         color: AppColors.primaryDark,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      'Lütfen öğrenci ve servis bilgisini seçin.',
+                      'Lütfen tarih ve servis bilgisini seçin.',
                       style: AppTextStyles.bodySm.copyWith(
                         color: const Color(0xFF6B7280),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
-                    // ÖĞRENCİ section
+                    // ÖĞRENCİ
                     const _SectionLabel(label: 'ÖĞRENCİ'),
                     const SizedBox(height: AppSpacing.xxs),
                     Container(
@@ -209,48 +264,62 @@ class _AbsentTodayViewState extends State<AbsentTodayView> {
                     ),
                     const SizedBox(height: AppSpacing.md),
 
-                    // TARİH section
+                    // TARİH
                     const _SectionLabel(label: 'TARİH'),
                     const SizedBox(height: AppSpacing.xxs),
+
+                    // Mode toggle
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                        vertical: AppSpacing.sm,
-                      ),
+                      height: 40,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF9FAFB),
-                        borderRadius: BorderRadius.circular(AppRadius.xl),
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                        color: const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
                       ),
                       child: Row(
                         children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color:
-                                  AppColors.primaryDark.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(AppRadius.lg),
-                            ),
-                            child: const Icon(
-                              Icons.calendar_today_rounded,
-                              color: AppColors.primaryDark,
-                              size: 18,
-                            ),
+                          _ModeTab(
+                            label: 'Tek Gün',
+                            isSelected: _dateMode == _DateMode.single,
+                            onTap: () =>
+                                setState(() => _dateMode = _DateMode.single),
                           ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Text(
-                            _formatTodayTR(),
-                            style: AppTextStyles.bodyMd.copyWith(
-                              color: AppColors.primaryDark,
-                            ),
+                          _ModeTab(
+                            label: 'Tarih Aralığı',
+                            isSelected: _dateMode == _DateMode.range,
+                            onTap: () =>
+                                setState(() => _dateMode = _DateMode.range),
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(height: AppSpacing.sm),
+
+                    if (_dateMode == _DateMode.single) ...[
+                      _SingleDatePicker(
+                        selectedDate: _selectedDate,
+                        dayAbbrTR: _dayAbbrTR,
+                        onDateSelected: (d) =>
+                            setState(() => _selectedDate = d),
+                      ),
+                    ] else ...[
+                      _DateRangeRow(
+                        label: 'Başlangıç',
+                        date: _startDate,
+                        formattedDate: _formatDateTR(_startDate),
+                        onTap: () => _pickDate(isStart: true),
+                      ),
+                      const SizedBox(height: AppSpacing.xxs),
+                      _DateRangeRow(
+                        label: 'Bitiş',
+                        date: _endDate,
+                        formattedDate:
+                            _endDate != null ? _formatDateTR(_endDate!) : null,
+                        onTap: () => _pickDate(isStart: false),
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.md),
 
-                    // İPTAL EDİLECEK SERVİSLER section
+                    // İPTAL EDİLECEK SERVİSLER
                     const _SectionLabel(label: 'İPTAL EDİLECEK SERVİSLER'),
                     const SizedBox(height: AppSpacing.xxs),
                     _ServiceCard(
@@ -272,7 +341,7 @@ class _AbsentTodayViewState extends State<AbsentTodayView> {
                     ),
                     const SizedBox(height: AppSpacing.md),
 
-                    // NOT (İSTEĞE BAĞLI) section
+                    // NOT
                     const _SectionLabel(label: 'NOT (İSTEĞE BAĞLI)'),
                     const SizedBox(height: AppSpacing.xxs),
                     TextField(
@@ -314,7 +383,6 @@ class _AbsentTodayViewState extends State<AbsentTodayView> {
               ),
             ),
 
-            // Bottom button — outside scroll, above safe area
             Container(
               padding: EdgeInsets.fromLTRB(
                 AppSpacing.screenHorizontal,
@@ -334,6 +402,226 @@ class _AbsentTodayViewState extends State<AbsentTodayView> {
                 isLoading: _isLoading,
                 onPressed: _canSubmit ? _submit : null,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeTab extends StatelessWidget {
+  const _ModeTab({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          margin: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontFamily: AppTextStyles.fontFamily,
+                fontSize: 13,
+                fontWeight:
+                    isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected
+                    ? AppColors.primaryDark
+                    : const Color(0xFF6B7280),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SingleDatePicker extends StatelessWidget {
+  const _SingleDatePicker({
+    required this.selectedDate,
+    required this.dayAbbrTR,
+    required this.onDateSelected,
+  });
+
+  final DateTime selectedDate;
+  final List<String> dayAbbrTR;
+  final ValueChanged<DateTime> onDateSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final days = List.generate(
+      7,
+      (i) => todayDate.add(Duration(days: i)),
+    );
+
+    return SizedBox(
+      height: 72,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: days.length,
+        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.xxs),
+        itemBuilder: (context, i) {
+          final day = days[i];
+          final isSelected = day == selectedDate;
+          final isToday = day == todayDate;
+          return GestureDetector(
+            onTap: () => onDateSelected(day),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 58,
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primaryDark : Colors.white,
+                borderRadius: BorderRadius.circular(AppRadius.xl),
+                border: Border.all(
+                  color: isSelected
+                      ? AppColors.primaryDark
+                      : const Color(0xFFE5E7EB),
+                  width: isSelected ? 1.5 : 1.0,
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    isToday ? 'Bugün' : dayAbbrTR[day.weekday - 1],
+                    style: TextStyle(
+                      fontFamily: AppTextStyles.fontFamily,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: isSelected
+                          ? Colors.white.withValues(alpha: 0.8)
+                          : const Color(0xFF9CA3AF),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${day.day}',
+                    style: TextStyle(
+                      fontFamily: AppTextStyles.fontFamily,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: isSelected
+                          ? Colors.white
+                          : AppColors.primaryDark,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DateRangeRow extends StatelessWidget {
+  const _DateRangeRow({
+    required this.label,
+    required this.date,
+    required this.formattedDate,
+    required this.onTap,
+  });
+
+  final String label;
+  final DateTime? date;
+  final String? formattedDate;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasDate = date != null;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          border: Border.all(
+            color: hasDate ? AppColors.primaryDark : const Color(0xFFE5E7EB),
+            width: hasDate ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.primaryDark.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+              ),
+              child: const Icon(
+                Icons.calendar_today_rounded,
+                color: AppColors.primaryDark,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontFamily: AppTextStyles.fontFamily,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF9CA3AF),
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    formattedDate ?? 'Tarih seçin',
+                    style: TextStyle(
+                      fontFamily: AppTextStyles.fontFamily,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: hasDate
+                          ? AppColors.primaryDark
+                          : const Color(0xFF9CA3AF),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF9CA3AF),
+              size: 20,
             ),
           ],
         ),
@@ -390,7 +678,8 @@ class _ServiceCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.xl),
           border: Border.all(
-            color: isSelected ? AppColors.primaryDark : const Color(0xFFE5E7EB),
+            color:
+                isSelected ? AppColors.primaryDark : const Color(0xFFE5E7EB),
             width: isSelected ? 1.5 : 1.0,
           ),
         ),
@@ -407,8 +696,9 @@ class _ServiceCard extends StatelessWidget {
               ),
               child: Icon(
                 icon,
-                color:
-                    isSelected ? AppColors.primaryDark : const Color(0xFF9CA3AF),
+                color: isSelected
+                    ? AppColors.primaryDark
+                    : const Color(0xFF9CA3AF),
                 size: 20,
               ),
             ),

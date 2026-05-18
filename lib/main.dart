@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -99,6 +100,9 @@ class _ServisNowVeliAppState extends State<ServisNowVeliApp> {
         title: 'ServisNow Veli',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        supportedLocales: const [Locale('tr'), Locale('en')],
+        locale: const Locale('tr'),
         home: isLoggedIn ? const MainWrapper() : const LoginView(),
       ),
     );

@@ -62,11 +62,18 @@ class _NotificationViewState extends State<NotificationView> {
 
   String _defaultTargetTab(NotificationModel notification) {
     switch (notification.notificationType) {
+      case 'sabah_servis_geliyor':
+      case 'evden_alindi':
+      case 'okuldan_bindi':
+      case 'eve_servis_geliyor':
+      case 'gecikme':
+      // eski tipler
       case 'eve_varis_eta':
       case 'evden_alim_eta':
         return 'map';
-      case 'okula_varis':
+      case 'okula_varildi':
       case 'eve_birakildi':
+      case 'okula_varis':
         return 'home';
       default:
         return 'notifications';
@@ -287,10 +294,10 @@ class _CategoryChips extends StatelessWidget {
         return 'Tümü';
       case NotificationCategory.servis:
         return 'Servis';
-      case NotificationCategory.guvenlik:
-        return 'Güvenlik';
       case NotificationCategory.okul:
         return 'Okul';
+      case NotificationCategory.gecikme:
+        return 'Gecikme';
     }
   }
 }
@@ -446,13 +453,21 @@ class _NotificationCard extends StatelessWidget {
 
   Color get _typeColor {
     switch (notification.notificationType) {
+      case 'sabah_servis_geliyor':
+      case 'eve_servis_geliyor':
       case 'eve_varis_eta':
       case 'evden_alim_eta':
         return AppColors.primaryDark;
+      case 'evden_alindi':
+      case 'okuldan_bindi':
+        return AppColors.primary;
+      case 'okula_varildi':
       case 'okula_varis':
         return const Color(0xFF7C3AED);
       case 'eve_birakildi':
         return const Color(0xFF16A34A);
+      case 'gecikme':
+        return const Color(0xFFEA580C);
       default:
         return const Color(0xFF6B7280);
     }
@@ -460,13 +475,20 @@ class _NotificationCard extends StatelessWidget {
 
   IconData get _typeIcon {
     switch (notification.notificationType) {
+      case 'sabah_servis_geliyor':
+      case 'evden_alindi':
+      case 'okuldan_bindi':
+      case 'eve_servis_geliyor':
       case 'eve_varis_eta':
       case 'evden_alim_eta':
         return Icons.directions_bus_rounded;
+      case 'okula_varildi':
       case 'okula_varis':
         return Icons.school_rounded;
       case 'eve_birakildi':
         return Icons.home_rounded;
+      case 'gecikme':
+        return Icons.warning_amber_rounded;
       default:
         return Icons.campaign_rounded;
     }
@@ -474,14 +496,25 @@ class _NotificationCard extends StatelessWidget {
 
   String get _categoryLabel {
     switch (notification.notificationType) {
+      case 'sabah_servis_geliyor':
+        return 'Sabah Servisi';
+      case 'evden_alindi':
+        return 'Sabah Servisi';
+      case 'okula_varildi':
+      case 'okula_varis':
+        return 'Okul';
+      case 'okuldan_bindi':
+        return 'Akşam Servisi';
+      case 'eve_servis_geliyor':
+        return 'Akşam Servisi';
+      case 'eve_birakildi':
+        return 'Akşam Servisi';
+      case 'gecikme':
+        return 'Gecikme';
       case 'eve_varis_eta':
         return 'Varış Tahmini';
       case 'evden_alim_eta':
         return 'Alım Tahmini';
-      case 'okula_varis':
-        return 'Okul Varışı';
-      case 'eve_birakildi':
-        return 'Eve Bırakıldı';
       default:
         return 'Genel';
     }

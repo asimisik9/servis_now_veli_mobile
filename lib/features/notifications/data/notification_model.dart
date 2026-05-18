@@ -72,14 +72,21 @@ class NotificationModel {
   /// Bildirim türüne göre ikon
   String get icon {
     switch (notificationType) {
+      case 'sabah_servis_geliyor':
+      case 'evden_alindi':
+      case 'okuldan_bindi':
+      case 'eve_servis_geliyor':
+      // eski tipler
       case 'eve_varis_eta':
-        return '🚌';
       case 'evden_alim_eta':
         return '🚌';
+      case 'okula_varildi':
       case 'okula_varis':
         return '✅';
       case 'eve_birakildi':
         return '🏠';
+      case 'gecikme':
+        return '⚠️';
       default:
         return '📢';
     }

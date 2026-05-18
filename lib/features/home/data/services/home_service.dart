@@ -25,6 +25,8 @@ class HomeService {
     String studentId, {
     List<String>? serviceTypes,
     String? note,
+    DateTime? startDate,
+    DateTime? endDate,
   }) async {
     try {
       final data = <String, dynamic>{};
@@ -33,6 +35,12 @@ class HomeService {
       }
       if (note != null && note.isNotEmpty) {
         data['note'] = note;
+      }
+      if (startDate != null) {
+        data['start_date'] = startDate.toIso8601String().substring(0, 10);
+      }
+      if (endDate != null) {
+        data['end_date'] = endDate.toIso8601String().substring(0, 10);
       }
       await _dio.post(
         ApiConstants.parentStudentAbsenceEndpoint(studentId),

@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../data/notification_model.dart';
 import '../data/notification_repository.dart';
 
-enum NotificationCategory { all, servis, guvenlik, okul }
+enum NotificationCategory { all, servis, okul, gecikme }
 
 class NotificationViewModel extends ChangeNotifier {
   final NotificationRepository _repository;
@@ -22,23 +22,41 @@ class NotificationViewModel extends ChangeNotifier {
   String? get error => _error;
   NotificationCategory get selectedCategory => _selectedCategory;
 
+  static const _servisTypes = {
+    'sabah_servis_geliyor',
+    'evden_alindi',
+    'okuldan_bindi',
+    'eve_servis_geliyor',
+    'eve_birakildi',
+    // eski tipler
+    'eve_varis_eta',
+    'evden_alim_eta',
+  };
+
+  static const _okulTypes = {
+    'okula_varildi',
+    'okula_varis',
+  };
+
+  static const _gecikmeTypes = {
+    'gecikme',
+  };
+
   List<NotificationModel> get filteredNotifications {
     switch (_selectedCategory) {
       case NotificationCategory.all:
         return _notifications;
       case NotificationCategory.servis:
         return _notifications
-            .where((n) =>
-                n.notificationType == 'eve_varis_eta' ||
-                n.notificationType == 'evden_alim_eta')
-            .toList();
-      case NotificationCategory.guvenlik:
-        return _notifications
-            .where((n) => n.notificationType == 'eve_birakildi')
+            .where((n) => _servisTypes.contains(n.notificationType))
             .toList();
       case NotificationCategory.okul:
         return _notifications
-            .where((n) => n.notificationType == 'okula_varis')
+            .where((n) => _okulTypes.contains(n.notificationType))
+            .toList();
+      case NotificationCategory.gecikme:
+        return _notifications
+            .where((n) => _gecikmeTypes.contains(n.notificationType))
             .toList();
     }
   }
@@ -117,52 +135,52 @@ class NotificationViewModel extends ChangeNotifier {
     return [
       NotificationModel(
         id: 'm1', recipientId: 'mock', status: 'sent', isRead: false,
-        title: 'Servis 5 dakika uzakta',
-        message: 'Ali\'nin servisi evinize yaklaşıyor. Hazır olun!',
-        notificationType: 'eve_varis_eta',
-        createdAt: now.subtract(const Duration(minutes: 4)),
+        title: 'Servis 5 dk sonra kapınızda',
+        message: 'Sabah servisi evinize yaklaşıyor. Hazır olun!',
+        notificationType: 'sabah_servis_geliyor',
+        createdAt: now.subtract(const Duration(minutes: 3)),
       ),
       NotificationModel(
         id: 'm2', recipientId: 'mock', status: 'sent', isRead: false,
-        title: 'Okula güvenle ulaştı',
-        message: 'Ali bugün saat 08:12\'de okula ulaştı.',
-        notificationType: 'okula_varis',
-        createdAt: now.subtract(const Duration(hours: 2)),
+        title: 'Eve geldi, çocuk bindi',
+        message: 'Servis evinize geldi. Ali servise güvenle bindi.',
+        notificationType: 'evden_alindi',
+        createdAt: now.subtract(const Duration(minutes: 20)),
       ),
       NotificationModel(
         id: 'm3', recipientId: 'mock', status: 'sent', isRead: false,
-        title: 'Eve bırakıldı',
-        message: 'Ali saat 16:45\'te evinize güvenle bırakıldı.',
-        notificationType: 'eve_birakildi',
-        createdAt: now.subtract(const Duration(hours: 5)),
+        title: 'Okula vardı',
+        message: 'Ali bugün saat 08:15\'te okula güvenle ulaştı.',
+        notificationType: 'okula_varildi',
+        createdAt: now.subtract(const Duration(hours: 2)),
       ),
       NotificationModel(
         id: 'm4', recipientId: 'mock', status: 'sent', isRead: true,
-        title: 'Servis yola çıktı',
-        message: 'Sabah servisi güzergaha çıktı, tahmini varış 07:50.',
-        notificationType: 'evden_alim_eta',
-        createdAt: now.subtract(const Duration(hours: 7)),
+        title: 'Okuldan servise bindi',
+        message: 'Ali okuldan servise bindi. Dönüş yolculuğu başladı.',
+        notificationType: 'okuldan_bindi',
+        createdAt: now.subtract(const Duration(hours: 5)),
       ),
       NotificationModel(
         id: 'm5', recipientId: 'mock', status: 'sent', isRead: true,
-        title: 'Okula güvenle ulaştı',
-        message: 'Ali dün saat 08:09\'da okula ulaştı.',
-        notificationType: 'okula_varis',
-        createdAt: now.subtract(const Duration(days: 1, hours: 8)),
+        title: 'Servis 5 dk sonra kapınızda',
+        message: 'Akşam servisi evinize yaklaşıyor.',
+        notificationType: 'eve_servis_geliyor',
+        createdAt: now.subtract(const Duration(hours: 6)),
       ),
       NotificationModel(
         id: 'm6', recipientId: 'mock', status: 'sent', isRead: true,
-        title: 'Eve bırakıldı',
-        message: 'Ali dün saat 17:02\'de evinize güvenle bırakıldı.',
+        title: 'Servisten indi',
+        message: 'Ali saat 16:48\'de servisten güvenle indi.',
         notificationType: 'eve_birakildi',
-        createdAt: now.subtract(const Duration(days: 1, hours: 3)),
+        createdAt: now.subtract(const Duration(hours: 6, minutes: 30)),
       ),
       NotificationModel(
         id: 'm7', recipientId: 'mock', status: 'sent', isRead: true,
-        title: 'Servis 10 dakika uzakta',
-        message: 'Öğleden sonra servisi evinize yaklaşıyor.',
-        notificationType: 'eve_varis_eta',
-        createdAt: now.subtract(const Duration(days: 2)),
+        title: 'Gecikme bildirimi',
+        message: 'Dün sabah servisi yaklaşık 10 dakika gecikmeli kaldı.',
+        notificationType: 'gecikme',
+        createdAt: now.subtract(const Duration(days: 1, hours: 7)),
       ),
     ];
   }

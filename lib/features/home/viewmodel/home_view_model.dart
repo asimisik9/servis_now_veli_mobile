@@ -122,6 +122,8 @@ class HomeViewModel extends ChangeNotifier {
   Future<String?> markAbsent({
     List<String>? serviceTypes,
     String? note,
+    DateTime? startDate,
+    DateTime? endDate,
   }) async {
     final student = currentStudent;
     if (student == null) return 'Öğrenci seçili değil.';
@@ -132,6 +134,8 @@ class HomeViewModel extends ChangeNotifier {
         student.id,
         serviceTypes: serviceTypes,
         note: note,
+        startDate: startDate,
+        endDate: endDate,
       );
       _isAbsent = true;
       return null;
