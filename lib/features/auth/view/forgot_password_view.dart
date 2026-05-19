@@ -25,6 +25,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
   late final ForgotPasswordViewModel _viewModel;
   final TextEditingController _emailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -40,20 +41,15 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
   }
 
   Future<void> _onSendCodePressed() async {
-    if (!(_formKey.currentState?.validate() ?? false)) {
-      return;
-    }
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => _errorMessage = null);
 
     final email = _emailController.text.trim();
     final result = await _viewModel.submit(email);
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (result != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.message)),
-      );
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => OtpVerificationView(email: email),
@@ -62,14 +58,9 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
       return;
     }
 
-    if (_viewModel.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_viewModel.errorMessage!),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
+    setState(() {
+      _errorMessage = _viewModel.errorMessage ?? 'Bir hata oluştu. Tekrar deneyin.';
+    });
   }
 
   @override
@@ -145,7 +136,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                                           ),
                                           const SizedBox(height: AppSpacing.md),
                                           Text(
-                                            'Sifremi Unuttum',
+                                            'Şifremi Unuttum',
                                             textAlign: TextAlign.center,
                                             style:
                                                 AppTextStyles.headlineLg.copyWith(
@@ -213,10 +204,10 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                                           validator: (value) {
                                             if (value == null ||
                                                 value.trim().isEmpty) {
-                                              return 'Lutfen e-posta adresinizi girin';
+                                              return 'Lütfen e-posta adresinizi girin';
                                             }
                                             if (!value.contains('@')) {
-                                              return 'Gecerli bir e-posta adresi girin';
+                                              return 'Geçerli bir e-posta adresi girin';
                                             }
                                             return null;
                                           },
@@ -224,14 +215,54 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                                       ),
                                       const SizedBox(height: AppSpacing.sm),
                                       Text(
-                                        'Eger bu e-posta ile kayitli bir hesabinız varsa, sifre sifirlama kodu gonderilecektir.',
+                                        'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama kodu gönderilecektir.',
                                         style: AppTextStyles.bodySm.copyWith(
                                           color: _neutralText,
                                         ),
                                       ),
+                                      if (_errorMessage != null) ...[
+                                        const SizedBox(height: AppSpacing.md),
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 12,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFEBEB),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                            border: Border.all(
+                                              color: const Color(0xFFFFCDD2),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Icon(
+                                                Icons.error_outline,
+                                                color: Color(0xFFD32F2F),
+                                                size: 18,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  _errorMessage!,
+                                                  style: const TextStyle(
+                                                    color: Color(0xFFD32F2F),
+                                                    fontSize: 13.5,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                       const SizedBox(height: AppSpacing.lg),
                                       PrimaryButton(
-                                        label: 'Kod Gonder',
+                                        label: 'Kod Gönder',
                                         backgroundColor: AppColors.primaryDark,
                                         onPressed: _onSendCodePressed,
                                         isLoading: _viewModel.isLoading,

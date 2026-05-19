@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Veli – iOS Simulator",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define=STADIA_MAPS_API_KEY=631703cf-1b82-4359-8486-a89eecd72724",
+        "--dart-define=API_BASE_URL=http://localhost:8000"
+      ]
+    },
+    {
+      "name": "Veli – Android Emulator",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define=STADIA_MAPS_API_KEY=631703cf-1b82-4359-8486-a89eecd72724",
+        "--dart-define=API_BASE_URL=http://10.0.2.2:8000"
+      ]
+    },
+    {
+      "name": "Veli – Fiziksel Cihaz",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define=STADIA_MAPS_API_KEY=631703cf-1b82-4359-8486-a89eecd72724",
+        "--dart-define=API_BASE_URL=http://MAKINENIN_IP:8000"
+      ]
+    }
+  ]
+}

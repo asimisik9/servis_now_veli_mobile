@@ -53,16 +53,6 @@ class _LoginViewState extends State<LoginView> {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const MainWrapper()),
         );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Giriş Başarılı!")),
-        );
-      } else if (mounted && _viewModel.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_viewModel.errorMessage!),
-            backgroundColor: AppColors.error,
-          ),
-        );
       }
     }
   }
@@ -281,6 +271,45 @@ class _LoginViewState extends State<LoginView> {
                                     ),
                                   ),
                                 ),
+                                if (_viewModel.errorMessage != null) ...[
+                                  const SizedBox(height: AppSpacing.md),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFEBEB),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: const Color(0xFFFFCDD2),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.error_outline,
+                                          color: Color(0xFFD32F2F),
+                                          size: 18,
+                                        ),
+                                        SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Giriş bilgileriniz hatalıdır.',
+                                            style: TextStyle(
+                                              color: Color(0xFFD32F2F),
+                                              fontSize: 13.5,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                                 const SizedBox(height: AppSpacing.lg),
                                 PrimaryButton(
                                   label: "Giriş Yap",

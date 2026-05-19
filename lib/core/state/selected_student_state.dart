@@ -62,12 +62,6 @@ class SelectedStudentState extends ChangeNotifier {
     }
   }
 
-  void setMockStudents(List<Student> students) {
-    _students = List.unmodifiable(students);
-    _selectedStudent = students.isNotEmpty ? students.first : null;
-    notifyListeners();
-  }
-
   void selectStudentById(String studentId) {
     if (studentId.isEmpty) {
       return;

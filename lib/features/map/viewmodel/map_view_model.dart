@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../core/services/analytics_service.dart';
 import '../../../core/state/selected_student_state.dart';
@@ -37,9 +37,6 @@ class MapViewModel extends ChangeNotifier {
   LatLng? _busLocation;
   LatLng? get busLocation => _busLocation;
 
-  final Set<Marker> _markers = {};
-  Set<Marker> get markers => _markers;
-
   List<Student> get students => _selectedStudentState.students;
   bool get hasMultipleStudents => _selectedStudentState.hasMultipleStudents;
   String? get selectedStudentId => _selectedStudentState.selectedStudent?.id;
@@ -57,13 +54,11 @@ class MapViewModel extends ChangeNotifier {
     _initializeData();
   }
 
-  /// Called by MapView when the Map tab becomes the active tab.
   void onTabActivated() {
     _startServiceStatusPolling();
     _pollServiceStatus();
   }
 
-  /// Called by MapView when the user navigates away from the Map tab.
   void onTabDeactivated() {
     _serviceStatusTimer?.cancel();
     _serviceStatusTimer = null;
@@ -72,7 +67,6 @@ class MapViewModel extends ChangeNotifier {
     _locationSubscription = null;
     _activeBusId = null;
     _busLocation = null;
-    _markers.removeWhere((m) => m.markerId.value == 'bus');
     notifyListeners();
   }
 
@@ -85,32 +79,18 @@ class MapViewModel extends ChangeNotifier {
     notifyListeners();
 
     _currentStudentId = _selectedStudentState.selectedStudent?.id;
-    _loadMockServiceData();
+    if (_currentStudentId != null) {
+      await _syncServiceState(initialLoad: true);
+    }
 
     _isLoading = false;
     notifyListeners();
   }
 
-  void _loadMockServiceData() {
-    _isServiceActive = true;
-    _serviceInfo = HomeStatusModel(
-      tripStatus: 'to_school',
-      minutesLeft: 8,
-      driverName: 'Ahmet Yılmaz',
-      driverPhone: '0532 123 45 67',
-      plateNumber: '34 AB 1234',
-      busId: 'mock_bus',
-    );
-    _updateBusLocation(const LatLng(41.0422, 28.9877));
-  }
-
   Future<void> refreshLocation() async {
-    if (_currentStudentId == null) {
-      return;
-    }
+    if (_currentStudentId == null) return;
     _isLoading = true;
     notifyListeners();
-
     try {
       await _syncServiceState(initialLoad: false);
     } finally {
@@ -120,28 +100,42 @@ class MapViewModel extends ChangeNotifier {
   }
 
   Future<void> _syncServiceState({required bool initialLoad}) async {
-    _loadMockServiceData();
+    final studentId = _currentStudentId;
+    if (studentId == null) return;
+
+    try {
+      final serviceInfo = await _mapService.getServiceInfo(studentId);
+      _serviceInfo = serviceInfo;
+      _isServiceActive = serviceInfo?.busId != null &&
+          serviceInfo!.busId!.isNotEmpty &&
+          serviceInfo.tripStatus != null &&
+          serviceInfo.tripStatus != 'inactive';
+
+      if (_isServiceActive && serviceInfo?.busId != null) {
+        if (initialLoad) await _startLiveTracking(studentId);
+      } else {
+        _clearBusLocation(clearSubscription: true);
+      }
+    } catch (e) {
+      _isServiceActive = false;
+      _serviceInfo = null;
+      _clearBusLocation(clearSubscription: true);
+    }
   }
 
   Future<void> _startLiveTracking(String studentId) async {
     await _fetchLiveLocation(studentId);
-    if (_currentStudentId != studentId) {
-      return;
-    }
+    if (_currentStudentId != studentId) return;
 
     final busId = await _mapService.getBusId(studentId);
-    if (_currentStudentId != studentId) {
-      return;
-    }
+    if (_currentStudentId != studentId) return;
 
     if (busId == null || busId.trim().isEmpty) {
       _clearBusLocation(clearSubscription: true);
       return;
     }
 
-    if (_activeBusId == busId && _locationSubscription != null) {
-      return;
-    }
+    if (_activeBusId == busId && _locationSubscription != null) return;
 
     _activeBusId = busId;
     _trackingStartedAt = DateTime.now();
@@ -183,28 +177,14 @@ class MapViewModel extends ChangeNotifier {
       _firstLocationLoggedStudentId = _currentStudentId;
     }
 
-    _markers.removeWhere((m) => m.markerId.value == 'bus');
-    _markers.add(
-      Marker(
-        markerId: const MarkerId('bus'),
-        position: location,
-        infoWindow: const InfoWindow(title: 'Servis'),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
-      ),
-    );
-
     notifyListeners();
   }
 
   Future<void> _fetchLiveLocation(String studentId) async {
     try {
       final location = await _mapService.getLiveLocation(studentId);
-      if (_currentStudentId != studentId) {
-        return;
-      }
-      if (location != null) {
-        _updateBusLocation(location);
-      }
+      if (_currentStudentId != studentId) return;
+      if (location != null) _updateBusLocation(location);
     } catch (e) {
       debugPrint('Error fetching live location: $e');
     }
@@ -220,62 +200,49 @@ class MapViewModel extends ChangeNotifier {
   void _cancelWsReconnect({bool resetAttempt = false}) {
     _wsReconnectTimer?.cancel();
     _wsReconnectTimer = null;
-    if (resetAttempt) {
-      _wsReconnectAttempt = 0;
-    }
+    if (resetAttempt) _wsReconnectAttempt = 0;
   }
 
   int _wsReconnectAttempt = 0;
 
   void _scheduleWsReconnect(String studentId) {
-    if (_currentStudentId != studentId || !_isServiceActive) {
-      return;
-    }
-    if (_activeBusId == null || _wsReconnectTimer != null) {
-      return;
-    }
+    if (_currentStudentId != studentId || !_isServiceActive) return;
+    if (_activeBusId == null || _wsReconnectTimer != null) return;
 
     final delaySeconds = math.min(30, math.pow(2, _wsReconnectAttempt).toInt());
     _wsReconnectAttempt = math.min(_wsReconnectAttempt + 1, 6);
 
     _wsReconnectTimer = Timer(Duration(seconds: delaySeconds), () async {
       _wsReconnectTimer = null;
-      if (_currentStudentId != studentId || !_isServiceActive) {
-        return;
-      }
+      if (_currentStudentId != studentId || !_isServiceActive) return;
       await _startLiveTracking(studentId);
     });
   }
 
   Future<void> _pollServiceStatus() async {
-    if (_currentStudentId == null) {
-      return;
-    }
-
+    if (_currentStudentId == null) return;
     final previousState = _isServiceActive;
     await _syncServiceState(initialLoad: false);
-
-    if (previousState != _isServiceActive) {
-      notifyListeners();
-    }
+    if (previousState != _isServiceActive) notifyListeners();
   }
 
   void _onSelectedStudentChanged() {
     final newStudentId = _selectedStudentState.selectedStudent?.id;
-    if (newStudentId == _currentStudentId) {
-      return;
-    }
-
+    if (newStudentId == _currentStudentId) return;
     _switchStudent(newStudentId);
   }
 
   Future<void> _switchStudent(String? studentId) async {
     _currentStudentId = studentId;
     _isLoading = true;
+    _isServiceActive = false;
+    _serviceInfo = null;
     _clearBusLocation(clearSubscription: true);
     notifyListeners();
 
-    _loadMockServiceData();
+    if (studentId != null) {
+      await _syncServiceState(initialLoad: true);
+    }
 
     _isLoading = false;
     notifyListeners();
@@ -288,9 +255,7 @@ class MapViewModel extends ChangeNotifier {
       _locationSubscription = null;
       _activeBusId = null;
     }
-
     _busLocation = null;
-    _markers.removeWhere((marker) => marker.markerId.value == 'bus');
   }
 
   @override

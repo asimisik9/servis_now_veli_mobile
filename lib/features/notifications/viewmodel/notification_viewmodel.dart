@@ -82,10 +82,7 @@ class NotificationViewModel extends ChangeNotifier {
           data.map((json) => NotificationModel.fromJson(json)).toList();
 
       if (refresh) {
-        // TODO: remove mock fallback when backend returns real data
-        _notifications = newNotifications.isEmpty
-            ? _mockNotifications()
-            : newNotifications;
+        _notifications = newNotifications;
         _unreadCount = _notifications.where((n) => !n.isRead).length;
       } else {
         _notifications.addAll(newNotifications);
@@ -95,11 +92,7 @@ class NotificationViewModel extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Notification load error: $e');
-      // TODO: remove mock fallback when backend is connected
-      if (refresh && _notifications.isEmpty) {
-        _notifications = _mockNotifications();
-        _unreadCount = _notifications.where((n) => !n.isRead).length;
-      }
+      _error = 'Bildirimler yüklenemedi.';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -128,61 +121,6 @@ class NotificationViewModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('Mark as read error: $e');
     }
-  }
-
-  List<NotificationModel> _mockNotifications() {
-    final now = DateTime.now();
-    return [
-      NotificationModel(
-        id: 'm1', recipientId: 'mock', status: 'sent', isRead: false,
-        title: 'Servis 5 dk sonra kapınızda',
-        message: 'Sabah servisi evinize yaklaşıyor. Hazır olun!',
-        notificationType: 'sabah_servis_geliyor',
-        createdAt: now.subtract(const Duration(minutes: 3)),
-      ),
-      NotificationModel(
-        id: 'm2', recipientId: 'mock', status: 'sent', isRead: false,
-        title: 'Eve geldi, çocuk bindi',
-        message: 'Servis evinize geldi. Ali servise güvenle bindi.',
-        notificationType: 'evden_alindi',
-        createdAt: now.subtract(const Duration(minutes: 20)),
-      ),
-      NotificationModel(
-        id: 'm3', recipientId: 'mock', status: 'sent', isRead: false,
-        title: 'Okula vardı',
-        message: 'Ali bugün saat 08:15\'te okula güvenle ulaştı.',
-        notificationType: 'okula_varildi',
-        createdAt: now.subtract(const Duration(hours: 2)),
-      ),
-      NotificationModel(
-        id: 'm4', recipientId: 'mock', status: 'sent', isRead: true,
-        title: 'Okuldan servise bindi',
-        message: 'Ali okuldan servise bindi. Dönüş yolculuğu başladı.',
-        notificationType: 'okuldan_bindi',
-        createdAt: now.subtract(const Duration(hours: 5)),
-      ),
-      NotificationModel(
-        id: 'm5', recipientId: 'mock', status: 'sent', isRead: true,
-        title: 'Servis 5 dk sonra kapınızda',
-        message: 'Akşam servisi evinize yaklaşıyor.',
-        notificationType: 'eve_servis_geliyor',
-        createdAt: now.subtract(const Duration(hours: 6)),
-      ),
-      NotificationModel(
-        id: 'm6', recipientId: 'mock', status: 'sent', isRead: true,
-        title: 'Servisten indi',
-        message: 'Ali saat 16:48\'de servisten güvenle indi.',
-        notificationType: 'eve_birakildi',
-        createdAt: now.subtract(const Duration(hours: 6, minutes: 30)),
-      ),
-      NotificationModel(
-        id: 'm7', recipientId: 'mock', status: 'sent', isRead: true,
-        title: 'Gecikme bildirimi',
-        message: 'Dün sabah servisi yaklaşık 10 dakika gecikmeli kaldı.',
-        notificationType: 'gecikme',
-        createdAt: now.subtract(const Duration(days: 1, hours: 7)),
-      ),
-    ];
   }
 
   Future<void> markAllAsRead() async {

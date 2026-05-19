@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/map_config.dart';
 import '../../../core/state/selected_student_state.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -35,11 +37,13 @@ class _MapViewContent extends StatefulWidget {
 }
 
 class _MapViewContentState extends State<_MapViewContent> {
-  GoogleMapController? _mapController;
+  final MapController _mapController = MapController();
   bool _hasMovedToInitialLocation = false;
   String? _lastSelectedStudentId;
   MainWrapperViewModel? _mainWrapperViewModel;
   bool _viewModelInitialized = false;
+
+  static const LatLng _kIstanbul = LatLng(41.0082, 28.9784);
 
   @override
   void didChangeDependencies() {
@@ -68,14 +72,13 @@ class _MapViewContentState extends State<_MapViewContent> {
   @override
   void dispose() {
     _mainWrapperViewModel?.removeListener(_onTabChanged);
+    _mapController.dispose();
     super.dispose();
   }
 
   void _centerOnBus(MapViewModel viewModel) {
-    if (viewModel.busLocation != null && _mapController != null) {
-      _mapController!.animateCamera(
-        CameraUpdate.newLatLng(viewModel.busLocation!),
-      );
+    if (viewModel.busLocation != null) {
+      _mapController.move(viewModel.busLocation!, 15.0);
     }
   }
 
@@ -89,37 +92,61 @@ class _MapViewContentState extends State<_MapViewContent> {
       _hasMovedToInitialLocation = false;
     }
 
-    if (!_hasMovedToInitialLocation &&
-        viewModel.busLocation != null &&
-        _mapController != null) {
-      _centerOnBus(viewModel);
-      _hasMovedToInitialLocation = true;
+    if (!_hasMovedToInitialLocation && viewModel.busLocation != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _mapController.move(viewModel.busLocation!, 15.0);
+        _hasMovedToInitialLocation = true;
+      });
     }
 
     final bottomCardOffset = viewModel.isServiceActive ? 36.0 : 52.0;
 
+    final busMarkers = viewModel.busLocation != null
+        ? [
+            Marker(
+              point: viewModel.busLocation!,
+              width: 48,
+              height: 48,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.directions_bus_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            ),
+          ]
+        : <Marker>[];
+
     return Scaffold(
       body: Stack(
         children: [
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target:
-                  viewModel.busLocation ?? const LatLng(41.0082, 28.9784),
-              zoom: 14.6,
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: viewModel.busLocation ?? _kIstanbul,
+              initialZoom: 14.6,
             ),
-            markers: viewModel.markers,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            onMapCreated: (controller) {
-              _mapController = controller;
-              if (viewModel.busLocation != null) {
-                controller.animateCamera(
-                  CameraUpdate.newLatLng(viewModel.busLocation!),
-                );
-                _hasMovedToInitialLocation = true;
-              }
-            },
+            children: [
+              TileLayer(
+                urlTemplate: MapConfig.tileUrlTemplate,
+                userAgentPackageName: 'com.servisnow.parent',
+                maxNativeZoom: 20,
+              ),
+              MarkerLayer(markers: busMarkers),
+            ],
           ),
           Positioned(
             top: safeTop,
@@ -203,10 +230,7 @@ class _MapTopOverlay extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Harita',
-                      style: AppTextStyles.titleLg,
-                    ),
+                    const Text('Harita', style: AppTextStyles.titleLg),
                     const SizedBox(height: AppSpacing.xxxs),
                     Text(
                       viewModel.isServiceActive
@@ -249,9 +273,7 @@ class _MapTopOverlay extends StatelessWidget {
                 color: const Color(0xFFF3F4F6),
                 borderRadius: BorderRadius.circular(AppRadius.xl),
               ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: viewModel.selectedStudentId,
@@ -270,9 +292,7 @@ class _MapTopOverlay extends StatelessWidget {
                       )
                       .toList(),
                   onChanged: (studentId) {
-                    if (studentId != null) {
-                      viewModel.selectStudent(studentId);
-                    }
+                    if (studentId != null) viewModel.selectStudent(studentId);
                   },
                 ),
               ),
@@ -290,10 +310,11 @@ class _MapStatusSheet extends StatelessWidget {
   final MapViewModel viewModel;
 
   Future<void> _callDriver(String phone) async {
-    final uri = Uri.parse('tel:$phone');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
+    final cleaned = phone.replaceAll(RegExp(r'[\s\-\(\)\+]'), '');
+    final uri = Uri.parse('tel:$cleaned');
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
   }
 
   @override
@@ -334,10 +355,7 @@ class _ActiveServiceCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  'Canlı Konum Paylaşımı',
-                  style: AppTextStyles.titleMd,
-                ),
+                child: Text('Canlı Konum Paylaşımı', style: AppTextStyles.titleMd),
               ),
               Container(
                 width: 7,
@@ -470,24 +488,15 @@ class _InactiveServiceCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  'Servis Saatleri Dışında',
-                  style: AppTextStyles.titleMd,
-                ),
+                child: Text('Servis Saatleri Dışında', style: AppTextStyles.titleMd),
               ),
-              const Icon(
-                Icons.bus_alert_rounded,
-                color: Color(0xFF9CA3AF),
-                size: 20,
-              ),
+              const Icon(Icons.bus_alert_rounded, color: Color(0xFF9CA3AF), size: 20),
             ],
           ),
           const SizedBox(height: AppSpacing.xxxs),
           Text(
             'Servis hareket ettiğinde canlı konum burada görünür.',
-            style: AppTextStyles.bodySm.copyWith(
-              color: const Color(0xFF9CA3AF),
-            ),
+            style: AppTextStyles.bodySm.copyWith(color: const Color(0xFF9CA3AF)),
           ),
           const SizedBox(height: AppSpacing.sm),
           Row(
@@ -496,21 +505,14 @@ class _InactiveServiceCard extends StatelessWidget {
                 child: _MapMetric(
                   label: 'Öğrenci',
                   value: viewModel.students
-                          .where(
-                            (s) => s.id == viewModel.selectedStudentId,
-                          )
+                          .where((s) => s.id == viewModel.selectedStudentId)
                           .firstOrNull
                           ?.fullName ??
                       'Seçili değil',
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              const Expanded(
-                child: _MapMetric(
-                  label: 'Durum',
-                  value: 'Bekliyor',
-                ),
-              ),
+              const Expanded(child: _MapMetric(label: 'Durum', value: 'Bekliyor')),
             ],
           ),
         ],
@@ -520,10 +522,7 @@ class _InactiveServiceCard extends StatelessWidget {
 }
 
 class _MapMetric extends StatelessWidget {
-  const _MapMetric({
-    required this.label,
-    required this.value,
-  });
+  const _MapMetric({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -541,16 +540,12 @@ class _MapMetric extends StatelessWidget {
         children: [
           Text(
             label,
-            style: AppTextStyles.labelSm.copyWith(
-              color: const Color(0xFF9CA3AF),
-            ),
+            style: AppTextStyles.labelSm.copyWith(color: const Color(0xFF9CA3AF)),
           ),
           const SizedBox(height: AppSpacing.xxxs),
           Text(
             value,
-            style: AppTextStyles.titleMd.copyWith(
-              color: AppColors.primaryDark,
-            ),
+            style: AppTextStyles.titleMd.copyWith(color: AppColors.primaryDark),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),

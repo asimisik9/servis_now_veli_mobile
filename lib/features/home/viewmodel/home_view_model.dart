@@ -44,7 +44,7 @@ class HomeViewModel extends ChangeNotifier {
   String get parentDisplayName {
     final fullName = TokenManager().user?.fullName?.trim();
     if (fullName != null && fullName.isNotEmpty) return fullName;
-    return 'Ayşe Hanım'; // TODO: remove mock fallback
+    return '';
   }
 
   String? _loadedStudentId;
@@ -58,49 +58,25 @@ class HomeViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    _loadMockData();
-
-    _isLoading = false;
-    notifyListeners();
+    try {
+      await _selectedStudentState.loadStudents(forceRefresh: refreshStudents);
+      final studentId = _selectedStudentState.selectedStudent?.id;
+      if (studentId != null) {
+        await _fetchDashboard(studentId);
+      }
+    } catch (e) {
+      _errorMessage = 'Bilgiler yüklenemedi.';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
-  // TODO: remove when backend is connected
-  void _loadMockData() {
-    _selectedStudentState.setMockStudents([
-      Student(
-        id: 'mock_1',
-        fullName: 'Efe Yılmaz',
-        studentNumber: '2024001',
-        schoolName: 'Bahçeşehir Koleji',
-        address: 'Bahçeşehir Mah. Birinci Cad. No:5 İstanbul',
-      ),
-      Student(
-        id: 'mock_2',
-        fullName: 'Zeynep Yılmaz',
-        studentNumber: '2024002',
-        schoolName: 'Bahçeşehir Koleji',
-        address: 'Bahçeşehir Mah. Birinci Cad. No:5 İstanbul',
-      ),
-      Student(
-        id: 'mock_3',
-        fullName: 'Ali Yılmaz',
-        studentNumber: '2024003',
-        schoolName: 'Acıbadem İlkokulu',
-        address: 'Acıbadem Mah. Akasyalı Sok. No:12 İstanbul',
-      ),
-    ]);
-    _homeStatus = _mockHomeStatus();
-    _loadedStudentId = _selectedStudentState.selectedStudent?.id;
+  Future<void> _fetchDashboard(String studentId) async {
+    _loadedStudentId = studentId;
+    _homeStatus = await _homeService.fetchStudentDashboard(studentId);
+    _isAbsent = await _homeService.getAbsenceStatus(studentId);
   }
-
-  HomeStatusModel _mockHomeStatus() => HomeStatusModel(
-        tripStatus: 'to_school',
-        minutesLeft: 15,
-        driverName: 'Ahmet Yılmaz',
-        driverPhone: '0532 123 45 67',
-        plateNumber: '34 AB 1234',
-        busId: 'mock_bus',
-      );
 
   void selectStudent(String studentId) {
     _selectedStudentState.selectStudentById(studentId);
@@ -192,12 +168,14 @@ class HomeViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    _loadedStudentId = studentId;
-    _homeStatus = _mockHomeStatus();
-    _isAbsent = false;
-
-    _isLoading = false;
-    notifyListeners();
+    try {
+      await _fetchDashboard(studentId);
+    } catch (e) {
+      _errorMessage = 'Bilgiler yüklenemedi.';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   @override

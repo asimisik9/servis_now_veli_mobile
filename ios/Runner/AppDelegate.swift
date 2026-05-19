@@ -1,6 +1,5 @@
 import Flutter
 import UIKit
-import GoogleMaps
 import Firebase
 import UserNotifications
 
@@ -18,15 +17,8 @@ import UserNotifications
       fatalError("Release build requires non-placeholder iOS bundle identifier.")
     }
 #endif
-    if let mapsApiKey = Bundle.main.object(forInfoDictionaryKey: "GOOGLE_MAPS_API_KEY") as? String,
-       !mapsApiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-      GMSServices.provideAPIKey(mapsApiKey)
-    } else {
-      assertionFailure("GOOGLE_MAPS_API_KEY is missing in Info.plist")
-    }
     GeneratedPluginRegistrant.register(with: self)
 
-    // Push notification registration
     if #available(iOS 10.0, *) {
       UNUserNotificationCenter.current().delegate = self
     }

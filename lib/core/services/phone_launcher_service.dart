@@ -5,7 +5,7 @@ class PhoneLauncherService {
     final cleaned = phoneNumber.replaceAll(RegExp(r'[\s\-\(\)]'), '');
     final uri = Uri.parse('tel:$cleaned');
     try {
-      return await launchUrl(uri);
+      return await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (_) {
       return false;
     }

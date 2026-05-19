@@ -94,7 +94,7 @@ class HomeService {
       if (longitude != null) {
         data['longitude'] = longitude;
       }
-      await _dio.patch(
+      await _dio.put(
         ApiConstants.parentStudentAddressEndpoint(studentId),
         data: data,
       );

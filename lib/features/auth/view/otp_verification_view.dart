@@ -29,6 +29,8 @@ class _OtpVerificationViewState extends State<OtpVerificationView> {
 
   late final ForgotPasswordViewModel _viewModel;
   final TextEditingController _codeController = TextEditingController();
+  String? _errorMessage;
+  String? _successMessage;
 
   @override
   void initState() {
@@ -46,40 +48,34 @@ class _OtpVerificationViewState extends State<OtpVerificationView> {
   void _onContinuePressed() {
     final token = _codeController.text.trim();
     if (token.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lutfen mailden gelen kodu girin.')),
-      );
+      setState(() {
+        _errorMessage = 'Lütfen e-postanıza gelen kodu girin.';
+        _successMessage = null;
+      });
       return;
     }
-
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => NewPasswordView(token: token),
-      ),
+      MaterialPageRoute(builder: (_) => NewPasswordView(token: token)),
     );
   }
 
   Future<void> _onResendCodePressed() async {
+    setState(() {
+      _errorMessage = null;
+      _successMessage = null;
+    });
+
     final result = await _viewModel.submit(widget.email.trim());
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (result != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.message)),
-      );
+      setState(() => _successMessage = 'Kod tekrar gönderildi.');
       return;
     }
 
-    if (_viewModel.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_viewModel.errorMessage!),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
+    setState(() {
+      _errorMessage = _viewModel.errorMessage ?? 'Kod gönderilemedi. Tekrar deneyin.';
+    });
   }
 
   @override
@@ -218,6 +214,84 @@ class _OtpVerificationViewState extends State<OtpVerificationView> {
                                         ),
                                       ),
                                     ),
+                                    if (_errorMessage != null) ...[
+                                      const SizedBox(height: AppSpacing.md),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFFEBEB),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                          border: Border.all(
+                                            color: const Color(0xFFFFCDD2),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Icon(
+                                              Icons.error_outline,
+                                              color: Color(0xFFD32F2F),
+                                              size: 18,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                _errorMessage!,
+                                                style: const TextStyle(
+                                                  color: Color(0xFFD32F2F),
+                                                  fontSize: 13.5,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                    if (_successMessage != null) ...[
+                                      const SizedBox(height: AppSpacing.md),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE8F5E9),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                          border: Border.all(
+                                            color: const Color(0xFFA5D6A7),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.check_circle_outline,
+                                              color: Color(0xFF2E7D32),
+                                              size: 18,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                _successMessage!,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF2E7D32),
+                                                  fontSize: 13.5,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                     const SizedBox(height: AppSpacing.lg),
                                     PrimaryButton(
                                       label: 'Devam Et',
@@ -238,8 +312,8 @@ class _OtpVerificationViewState extends State<OtpVerificationView> {
                                         ),
                                         child: Text(
                                           _viewModel.isLoading
-                                              ? 'Gonderiliyor...'
-                                              : 'Kodu Tekrar Gonder',
+                                              ? 'Gönderiliyor...'
+                                              : 'Kodu Tekrar Gönder',
                                           style: AppTextStyles.labelSm.copyWith(
                                             color: _neutralLabel,
                                           ),
